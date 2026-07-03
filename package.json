@@ -1,0 +1,46 @@
+{
+  "name": "gauntlet",
+  "version": "0.1.0",
+  "description": "Automated red-teaming for LLM agents: indirect prompt injection, tool abuse, data exfiltration, and adaptive attacks with deterministic success oracles.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "gauntlet": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "llm",
+    "security",
+    "red-team",
+    "prompt-injection",
+    "agent",
+    "owasp-llm",
+    "jailbreak"
+  ],
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}

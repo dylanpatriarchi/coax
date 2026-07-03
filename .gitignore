@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+
+# Local secrets & real target credentials — never commit
+.env
+.env.local
+.env.*.local
+
+# Generated reports & attack caches
+report/
+.gauntlet-cache/
