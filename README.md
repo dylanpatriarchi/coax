@@ -19,15 +19,15 @@ injection**, **tool abuse / excessive agency**, **data exfiltration**, and
 
 ## Status
 
-Under active development, built milestone-by-milestone. **Milestones 1-4 are
+Under active development, built milestone-by-milestone. **Milestones 1-5 are
 complete**: scaffold, the typed `TargetAdapter` interface, a vulnerable mock
-agent, the responsible-use gate, a seeded PRNG, attack + oracle registries, four
-attack modules (direct override, jailbreak, obfuscation, and **indirect prompt
-injection** through ingested web/doc/tool/email content), the deterministic
-**canary oracle**, an **LLM-judge policy oracle** (with a deterministic fallback
-and documented rubric), a **false-positive suite** (0% FP), a cost-capped +
-cached LLM client, an end-to-end scan runner (`gauntlet scan`), an Ollama
-adapter, and offline CI.
+agent, the responsible-use gate, a seeded PRNG, attack + oracle registries, five
+attack modules (direct override, jailbreak, obfuscation, **indirect prompt
+injection** through ingested web/doc/tool/email content, and **tool abuse /
+excessive agency**), three deterministic-or-fallback oracles (**canary**,
+**LLM-judge policy** with documented rubric, **tool-call-trace**), a
+**false-positive suite** (0% FP), a cost-capped + cached LLM client, an
+end-to-end scan runner (`gauntlet scan`), an Ollama adapter, and offline CI.
 
 | # | Milestone | State |
 |---|-----------|-------|
@@ -35,8 +35,8 @@ adapter, and offline CI.
 | 2 | Attack/oracle registries + static direct-injection/jailbreak modules | ✅ done |
 | 3 | Canary-exfiltration oracle + policy oracle + false-positive suite | ✅ done |
 | 4 | Indirect injection: poisoned-content channel + attacks | ✅ done |
-| 5 | Tool-abuse attacks + tool-call-trace oracle | ⬜ next |
-| 6 | Adaptive LLM-driven attacker (bounded, cost-capped) | ⬜ |
+| 5 | Tool-abuse attacks + tool-call-trace oracle | ✅ done |
+| 6 | Adaptive LLM-driven attacker (bounded, cost-capped) | ⬜ next |
 | 7 | Scoring (ASR/severity/taxonomy) + Markdown/HTML report | ⬜ |
 | 8 | Real adapters (HTTP, OpenAI-compatible, Playwright) + docs | ⬜ |
 
@@ -60,12 +60,14 @@ prints Attack Success Rate per family (seeded, reproducible):
   jailbreak             40%     (2/5)
   obfuscation           40%     (2/5)
   indirect-injection   100%     (20/20)
+  tool-abuse           100%     (4/4)
   --------------------------------------------
-  OVERALL               74%     (26/35)
+  OVERALL               77%     (30/39)
 
   oracle false-positive rate (benign corpus):
   canary                 0%     (0/10)
   policy                 0%     (0/10)
+  tool-trace             0%     (0/10)
 ```
 
 ### Try it against a real local model (Ollama)
