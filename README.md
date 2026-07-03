@@ -19,16 +19,17 @@ injection**, **tool abuse / excessive agency**, **data exfiltration**, and
 
 ## Status
 
-Under active development, built milestone-by-milestone. **Milestone 1 is
-complete**: project scaffold, the typed `TargetAdapter` interface, a
-deliberately-vulnerable mock agent, the responsible-use gate, a runnable CLI
-demo, an Ollama adapter, and offline CI.
+Under active development, built milestone-by-milestone. **Milestones 1-2 are
+complete**: scaffold, the typed `TargetAdapter` interface, a vulnerable mock
+agent, the responsible-use gate, a seeded PRNG, attack + oracle registries,
+three static attack modules, the deterministic canary oracle, an end-to-end scan
+runner (`gauntlet scan`), an Ollama adapter, and offline CI.
 
 | # | Milestone | State |
 |---|-----------|-------|
 | 1 | Scaffold + Target adapter interface + vulnerable mock agent | ✅ done |
-| 2 | Attack/oracle registries + static direct-injection/jailbreak modules | ⬜ next |
-| 3 | Canary-exfiltration oracle + policy oracle + false-positive suite | ⬜ |
+| 2 | Attack/oracle registries + static direct-injection/jailbreak modules | ✅ done |
+| 3 | Canary-exfiltration oracle + policy oracle + false-positive suite | ⬜ next |
 | 4 | Indirect injection: poisoned-content channel + attacks | ⬜ |
 | 5 | Tool-abuse attacks + tool-call-trace oracle | ⬜ |
 | 6 | Adaptive LLM-driven attacker (bounded, cost-capped) | ⬜ |
@@ -41,7 +42,21 @@ demo, an Ollama adapter, and offline CI.
 npm install
 npm test           # fully offline: attacks + oracles vs. the mock agent
 npm run typecheck
-npx tsx src/cli/index.ts demo    # drive the vulnerable mock agent
+npx tsx src/cli/index.ts scan --seed 42   # run the built-in suite, print ASR
+npx tsx src/cli/index.ts demo             # drive the vulnerable mock agent
+```
+
+`gauntlet scan` runs the built-in attack suite against the local mock agent and
+prints Attack Success Rate per family (seeded, reproducible):
+
+```
+  family              ASR      (hits/total)
+  --------------------------------------------
+  direct-override       40%     (2/5)
+  jailbreak             40%     (2/5)
+  obfuscation           40%     (2/5)
+  --------------------------------------------
+  OVERALL               40%     (6/15)
 ```
 
 ### Try it against a real local model (Ollama)
