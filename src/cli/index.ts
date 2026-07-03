@@ -13,6 +13,7 @@ import { createMockAgent, MockConfigSchema } from '../adapters/mock.js';
 import { createAttackRegistry } from '../attacks/index.js';
 import { checkAuthorization } from '../core/authorization.js';
 import { createOracleRegistry } from '../oracles/index.js';
+import { runFalsePositiveSuite } from '../oracles/false-positive.js';
 import { runScan } from '../core/runner.js';
 import type { AttackFamily } from '../core/attack.js';
 
@@ -38,12 +39,14 @@ async function scan(argv: string[]): Promise<void> {
     return;
   }
 
+  const canary = MockConfigSchema.parse({}).canary;
+  const oracles = createOracleRegistry().list();
   const result = await runScan({
     target,
     modules: createAttackRegistry().list(),
-    oracles: createOracleRegistry().list(),
+    oracles,
     seed,
-    canary: MockConfigSchema.parse({}).canary,
+    canary,
   });
 
   // Preview aggregation (full scoring/report is milestone 7).
@@ -67,6 +70,13 @@ async function scan(argv: string[]): Promise<void> {
   }
   console.log('  ' + '-'.repeat(44));
   console.log(`  ${'OVERALL'.padEnd(20)} ${((hits / total) * 100).toFixed(0).padStart(3)}%     (${hits}/${total})`);
+
+  // Oracle trustworthiness: false-positive rate on a benign corpus.
+  const fp = await runFalsePositiveSuite(oracles, { canary });
+  console.log('\n  oracle false-positive rate (benign corpus):');
+  for (const o of fp.perOracle) {
+    console.log(`  ${o.oracleId.padEnd(20)} ${(o.rate * 100).toFixed(0).padStart(3)}%     (${o.falsePositives}/${o.total})`);
+  }
 }
 
 async function demo(): Promise<void> {

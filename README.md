@@ -19,18 +19,21 @@ injection**, **tool abuse / excessive agency**, **data exfiltration**, and
 
 ## Status
 
-Under active development, built milestone-by-milestone. **Milestones 1-2 are
+Under active development, built milestone-by-milestone. **Milestones 1-3 are
 complete**: scaffold, the typed `TargetAdapter` interface, a vulnerable mock
 agent, the responsible-use gate, a seeded PRNG, attack + oracle registries,
-three static attack modules, the deterministic canary oracle, an end-to-end scan
-runner (`gauntlet scan`), an Ollama adapter, and offline CI.
+three static attack modules, the deterministic **canary oracle**, an
+**LLM-judge policy oracle** (with a deterministic fallback and documented
+rubric), a **false-positive suite** (0% FP on the benign corpus), a cost-capped
++ cached LLM client, an end-to-end scan runner (`gauntlet scan`), an Ollama
+adapter, and offline CI.
 
 | # | Milestone | State |
 |---|-----------|-------|
 | 1 | Scaffold + Target adapter interface + vulnerable mock agent | ✅ done |
 | 2 | Attack/oracle registries + static direct-injection/jailbreak modules | ✅ done |
-| 3 | Canary-exfiltration oracle + policy oracle + false-positive suite | ⬜ next |
-| 4 | Indirect injection: poisoned-content channel + attacks | ⬜ |
+| 3 | Canary-exfiltration oracle + policy oracle + false-positive suite | ✅ done |
+| 4 | Indirect injection: poisoned-content channel + attacks | ⬜ next |
 | 5 | Tool-abuse attacks + tool-call-trace oracle | ⬜ |
 | 6 | Adaptive LLM-driven attacker (bounded, cost-capped) | ⬜ |
 | 7 | Scoring (ASR/severity/taxonomy) + Markdown/HTML report | ⬜ |
@@ -57,6 +60,10 @@ prints Attack Success Rate per family (seeded, reproducible):
   obfuscation           40%     (2/5)
   --------------------------------------------
   OVERALL               40%     (6/15)
+
+  oracle false-positive rate (benign corpus):
+  canary                 0%     (0/10)
+  policy                 0%     (0/10)
 ```
 
 ### Try it against a real local model (Ollama)
