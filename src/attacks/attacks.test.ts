@@ -11,7 +11,12 @@ function ctx(seed: number, extra: Partial<AttackContext> = {}): AttackContext {
 describe('attack registry', () => {
   it('registers the built-in modules by id', () => {
     const reg = createAttackRegistry();
-    expect(reg.ids()).toEqual(['direct-override', 'jailbreak', 'obfuscation']);
+    expect(reg.ids()).toEqual([
+      'direct-override',
+      'jailbreak',
+      'obfuscation',
+      'indirect-injection',
+    ]);
   });
 });
 

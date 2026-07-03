@@ -8,11 +8,13 @@ import type { AttackContext, AttackModule, AttackPayload } from '../core/attack.
 import { directOverrideModule } from './direct-override.js';
 import { jailbreakModule } from './jailbreak.js';
 import { obfuscationModule } from './obfuscation.js';
+import { indirectInjectionModule } from './indirect-injection.js';
 
 export const BUILTIN_ATTACKS: readonly AttackModule[] = [
   directOverrideModule,
   jailbreakModule,
   obfuscationModule,
+  indirectInjectionModule,
 ];
 
 export function createAttackRegistry(): Registry<AttackModule> {
@@ -30,4 +32,4 @@ export function generatePayloads(
   return modules.flatMap((m) => m.generate(ctx));
 }
 
-export { directOverrideModule, jailbreakModule, obfuscationModule };
+export { directOverrideModule, jailbreakModule, obfuscationModule, indirectInjectionModule };
