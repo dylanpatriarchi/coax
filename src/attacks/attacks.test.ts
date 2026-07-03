@@ -16,6 +16,7 @@ describe('attack registry', () => {
       'jailbreak',
       'obfuscation',
       'indirect-injection',
+      'tool-abuse',
     ]);
   });
 });
