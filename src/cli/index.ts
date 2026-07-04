@@ -15,7 +15,11 @@ import { checkAuthorization } from '../core/authorization.js';
 import { createOracleRegistry } from '../oracles/index.js';
 import { runFalsePositiveSuite } from '../oracles/false-positive.js';
 import { runScan } from '../core/runner.js';
-import type { AttackFamily } from '../core/attack.js';
+import { scoreScan } from '../report/scoring.js';
+import { renderMarkdown } from '../report/markdown.js';
+import { renderHtml } from '../report/html.js';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const VERSION = '0.1.0';
 
@@ -28,8 +32,14 @@ function parseSeed(argv: string[]): number {
   return 42;
 }
 
+function parseOut(argv: string[]): string | undefined {
+  const i = argv.indexOf('--out');
+  return i >= 0 && argv[i + 1] ? argv[i + 1] : undefined;
+}
+
 async function scan(argv: string[]): Promise<void> {
   const seed = parseSeed(argv);
+  const outDir = parseOut(argv);
   const target = createMockAgent();
 
   const gate = checkAuthorization({ target: 'mock' });
@@ -48,34 +58,35 @@ async function scan(argv: string[]): Promise<void> {
     seed,
     canary,
   });
+  const fp = await runFalsePositiveSuite(oracles, { canary });
+  const report = scoreScan(result, { falsePositive: fp });
 
-  // Preview aggregation (full scoring/report is milestone 7).
-  const byFamily = new Map<AttackFamily, { total: number; hits: number }>();
-  for (const a of result.attempts) {
-    const f = a.payload.family;
-    const row = byFamily.get(f) ?? { total: 0, hits: 0 };
-    row.total += 1;
-    if (a.success) row.hits += 1;
-    byFamily.set(f, row);
-  }
-
-  const total = result.attempts.length;
-  const hits = result.attempts.filter((a) => a.success).length;
-  console.log(`gauntlet scan — target: ${result.target}  seed: ${seed}\n`);
+  console.log(`gauntlet scan — target: ${report.meta.target}  seed: ${seed}\n`);
   console.log('  family              ASR      (hits/total)');
   console.log('  ' + '-'.repeat(44));
-  for (const [family, row] of byFamily) {
-    const asr = ((row.hits / row.total) * 100).toFixed(0).padStart(3);
-    console.log(`  ${family.padEnd(20)} ${asr}%     (${row.hits}/${row.total})`);
+  for (const row of report.byFamily) {
+    const asr = (row.asr * 100).toFixed(0).padStart(3);
+    console.log(`  ${row.key.padEnd(20)} ${asr}%     (${row.hits}/${row.total})`);
   }
   console.log('  ' + '-'.repeat(44));
-  console.log(`  ${'OVERALL'.padEnd(20)} ${((hits / total) * 100).toFixed(0).padStart(3)}%     (${hits}/${total})`);
+  console.log(
+    `  ${'OVERALL'.padEnd(20)} ${(report.overall.asr * 100).toFixed(0).padStart(3)}%     ` +
+      `(${report.overall.hits}/${report.overall.total})   severity-weighted ${(report.overall.weightedAsr * 100).toFixed(0)}%`,
+  );
 
-  // Oracle trustworthiness: false-positive rate on a benign corpus.
-  const fp = await runFalsePositiveSuite(oracles, { canary });
   console.log('\n  oracle false-positive rate (benign corpus):');
   for (const o of fp.perOracle) {
     console.log(`  ${o.oracleId.padEnd(20)} ${(o.rate * 100).toFixed(0).padStart(3)}%     (${o.falsePositives}/${o.total})`);
+  }
+
+  if (outDir) {
+    mkdirSync(outDir, { recursive: true });
+    const generatedAt = new Date().toISOString();
+    writeFileSync(join(outDir, 'report.md'), renderMarkdown(report, { generatedAt }));
+    writeFileSync(join(outDir, 'report.html'), renderHtml(report, { generatedAt }));
+    console.log(`\n  report written to ${join(outDir, 'report.md')} and report.html`);
+  } else {
+    console.log('\n  (pass --out <dir> to write the full Markdown + HTML report)');
   }
 }
 
@@ -135,9 +146,9 @@ async function main(): Promise<number> {
       // Show that the authorization gate exists even in the stub CLI.
       const gate = checkAuthorization({ target: 'mock' });
       console.log('Gauntlet — automated red-teaming for LLM agents');
-      console.log(`\nUsage:\n  gauntlet scan [--seed N]  run the built-in suite vs. the mock, print ASR`);
-      console.log(`  gauntlet demo             run the vulnerable mock agent demo`);
-      console.log(`  gauntlet version          print version`);
+      console.log(`\nUsage:\n  gauntlet scan [--seed N] [--out DIR]  run the suite vs. the mock; write report`);
+      console.log(`  gauntlet demo                         run the vulnerable mock agent demo`);
+      console.log(`  gauntlet version                      print version`);
       console.log(`\nResponsible use: ${gate.reason}`);
       console.log('Only test systems you own or are authorized to test.');
       return cmd ? 1 : 0;
