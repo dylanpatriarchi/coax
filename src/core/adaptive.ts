@@ -113,21 +113,33 @@ function parseMove(text: string): AttackerMove | null {
   }
 }
 
+/** Fall back to raw model prose as the attack message when JSON parsing fails. */
+function deriveRawMove(raw: string): AttackerMove | null {
+  const text = raw.trim();
+  if (text.length === 0) return null;
+  return { userMessage: text.slice(0, 2000), reasoning: 'raw (non-JSON) attacker output' };
+}
+
 export async function runAdaptiveAttack(ctx: AdaptiveContext): Promise<AdaptiveResult> {
   const rounds: AdaptiveRound[] = [];
   let stoppedBy: AdaptiveResult['stoppedBy'] = 'exhausted';
 
   for (let i = 1; i <= ctx.maxIterations; i++) {
-    let move: AttackerMove | null;
+    let raw: string;
     try {
-      move = parseMove(await ctx.model.complete(buildPrompt(ctx.goal, rounds)));
+      raw = await ctx.model.complete(buildPrompt(ctx.goal, rounds));
     } catch {
       // Budget exhausted or model failure — stop with what we have.
       stoppedBy = 'model-error';
       break;
     }
+    // Prefer a structured move; if the model didn't emit valid JSON, fall back to
+    // using its raw output as the attack message (small models rarely obey the
+    // JSON contract, but their prose is still a usable attack).
+    const parsed = parseMove(raw);
+    const move: AttackerMove | null = parsed ?? deriveRawMove(raw);
     if (!move) {
-      // Unparseable move: skip this iteration rather than crash the loop.
+      // Truly empty output: skip this iteration rather than crash the loop.
       continue;
     }
 
