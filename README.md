@@ -19,7 +19,7 @@ injection**, **tool abuse / excessive agency**, **data exfiltration**, and
 
 ## Status
 
-Under active development, built milestone-by-milestone. **Milestones 1-6 are
+Under active development, built milestone-by-milestone. **Milestones 1-7 are
 complete**: scaffold, the typed `TargetAdapter` interface, a vulnerable mock
 agent, the responsible-use gate, a seeded PRNG, attack + oracle registries, five
 static attack modules (direct override, jailbreak, obfuscation, **indirect
@@ -27,8 +27,10 @@ prompt injection** through ingested web/doc/tool/email content, and **tool abuse
 / excessive agency**), an **adaptive LLM-driven attacker** (bounded + cost-capped
 closed loop), three deterministic-or-fallback oracles (**canary**, **LLM-judge
 policy** with documented rubric, **tool-call-trace**), a **false-positive suite**
-(0% FP), a cost-capped + cached LLM client, an end-to-end scan runner
-(`gauntlet scan`), an Ollama adapter, and offline CI.
+(0% FP), a cost-capped + cached LLM client, **scoring** (ASR by
+family/surface/OWASP category, severity-weighted) with **Markdown + HTML report**
+generation, an end-to-end scan runner (`gauntlet scan --out report/`), an Ollama
+adapter, and offline CI.
 
 | # | Milestone | State |
 |---|-----------|-------|
@@ -38,8 +40,8 @@ policy** with documented rubric, **tool-call-trace**), a **false-positive suite*
 | 4 | Indirect injection: poisoned-content channel + attacks | ✅ done |
 | 5 | Tool-abuse attacks + tool-call-trace oracle | ✅ done |
 | 6 | Adaptive LLM-driven attacker (bounded, cost-capped) | ✅ done |
-| 7 | Scoring (ASR/severity/taxonomy) + Markdown/HTML report | ⬜ next |
-| 8 | Real adapters (HTTP, OpenAI-compatible, Playwright) + docs | ⬜ |
+| 7 | Scoring (ASR/severity/taxonomy) + Markdown/HTML report | ✅ done |
+| 8 | Real adapters (HTTP, OpenAI-compatible, Playwright) + docs | ⬜ next |
 
 ## Quick start
 
@@ -47,9 +49,13 @@ policy** with documented rubric, **tool-call-trace**), a **false-positive suite*
 npm install
 npm test           # fully offline: attacks + oracles vs. the mock agent
 npm run typecheck
-npx tsx src/cli/index.ts scan --seed 42   # run the built-in suite, print ASR
-npx tsx src/cli/index.ts demo             # drive the vulnerable mock agent
+npx tsx src/cli/index.ts scan --seed 42 --out report/   # run suite + write report
+npx tsx src/cli/index.ts demo                           # drive the vulnerable mock agent
 ```
+
+With `--out report/`, Gauntlet writes a `report.md` and a self-contained
+`report.html` containing the ASR tables, each successful attack's reproducible
+transcript, its severity and OWASP mapping, and a concrete remediation.
 
 `gauntlet scan` runs the built-in attack suite against the local mock agent and
 prints Attack Success Rate per family (seeded, reproducible):
