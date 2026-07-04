@@ -18,6 +18,8 @@ import { runScan } from '../core/runner.js';
 import { scoreScan } from '../report/scoring.js';
 import { renderMarkdown } from '../report/markdown.js';
 import { renderHtml } from '../report/html.js';
+import { loadTarget } from './load-target.js';
+import type { TargetAdapter } from '../core/target.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -32,33 +34,51 @@ function parseSeed(argv: string[]): number {
   return 42;
 }
 
-function parseOut(argv: string[]): string | undefined {
-  const i = argv.indexOf('--out');
+function parseFlag(argv: string[], name: string): string | undefined {
+  const i = argv.indexOf(name);
   return i >= 0 && argv[i + 1] ? argv[i + 1] : undefined;
 }
 
 async function scan(argv: string[]): Promise<void> {
   const seed = parseSeed(argv);
-  const outDir = parseOut(argv);
-  const target = createMockAgent();
+  const outDir = parseFlag(argv, '--out');
+  const targetPath = parseFlag(argv, '--target');
+  const authorized = argv.includes('--i-am-authorized');
 
-  const gate = checkAuthorization({ target: 'mock' });
+  // Resolve the target: a user module via --target, else the built-in mock.
+  let target: TargetAdapter;
+  let canary: string | undefined;
+  let gateTarget = 'mock';
+  if (targetPath) {
+    const loaded = await loadTarget(targetPath);
+    target = loaded.target;
+    canary = loaded.canary;
+    gateTarget = loaded.endpoint ?? targetPath;
+  } else {
+    target = createMockAgent();
+    canary = MockConfigSchema.parse({}).canary;
+  }
+
+  const gate = checkAuthorization({
+    target: gateTarget,
+    flag: authorized,
+    env: process.env.GAUNTLET_I_AM_AUTHORIZED,
+  });
   if (!gate.allowed) {
     console.error(gate.reason);
     process.exitCode = 2;
     return;
   }
 
-  const canary = MockConfigSchema.parse({}).canary;
   const oracles = createOracleRegistry().list();
   const result = await runScan({
     target,
     modules: createAttackRegistry().list(),
     oracles,
     seed,
-    canary,
+    ...(canary !== undefined ? { canary } : {}),
   });
-  const fp = await runFalsePositiveSuite(oracles, { canary });
+  const fp = await runFalsePositiveSuite(oracles, canary !== undefined ? { canary } : {});
   const report = scoreScan(result, { falsePositive: fp });
 
   console.log(`gauntlet scan — target: ${report.meta.target}  seed: ${seed}\n`);
@@ -146,9 +166,13 @@ async function main(): Promise<number> {
       // Show that the authorization gate exists even in the stub CLI.
       const gate = checkAuthorization({ target: 'mock' });
       console.log('Gauntlet — automated red-teaming for LLM agents');
-      console.log(`\nUsage:\n  gauntlet scan [--seed N] [--out DIR]  run the suite vs. the mock; write report`);
-      console.log(`  gauntlet demo                         run the vulnerable mock agent demo`);
-      console.log(`  gauntlet version                      print version`);
+      console.log('\nUsage:');
+      console.log('  gauntlet scan [--target ./target.ts] [--seed N] [--out DIR] [--i-am-authorized]');
+      console.log('                                        run the suite; write a report');
+      console.log('  gauntlet demo                         run the vulnerable mock agent demo');
+      console.log('  gauntlet version                      print version');
+      console.log('\nWithout --target, scans the built-in vulnerable mock. A non-localhost');
+      console.log('--target endpoint requires --i-am-authorized (or GAUNTLET_I_AM_AUTHORIZED=true).');
       console.log(`\nResponsible use: ${gate.reason}`);
       console.log('Only test systems you own or are authorized to test.');
       return cmd ? 1 : 0;
