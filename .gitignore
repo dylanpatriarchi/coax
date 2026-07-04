@@ -9,6 +9,6 @@ coverage/
 .env.local
 .env.*.local
 
-# Generated reports & attack caches
-report/
+# Generated reports & attack caches (top-level output dirs only, not src/report)
+/report/
 .gauntlet-cache/
