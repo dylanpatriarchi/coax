@@ -33,6 +33,9 @@ export function ollamaModel(opts: OllamaModelOptions = {}): ChatModel {
             model,
             prompt,
             stream: false,
+            // Reasoning models (e.g. qwen3.x) otherwise emit an empty `response`
+            // and put everything in `thinking`; disable that for direct answers.
+            think: false,
             options: { temperature, seed },
           }),
           signal: controller.signal,
@@ -40,8 +43,10 @@ export function ollamaModel(opts: OllamaModelOptions = {}): ChatModel {
         if (!res.ok) {
           throw new Error(`Ollama ${res.status}: ${await res.text()}`);
         }
-        const json = (await res.json()) as { response?: string };
-        return json.response ?? '';
+        const json = (await res.json()) as { response?: string; thinking?: string };
+        // Prefer the answer; fall back to thinking text if the model still routed
+        // its output there despite think:false.
+        return json.response && json.response.length > 0 ? json.response : json.thinking ?? '';
       } finally {
         clearTimeout(timer);
       }

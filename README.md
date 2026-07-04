@@ -19,15 +19,16 @@ injection**, **tool abuse / excessive agency**, **data exfiltration**, and
 
 ## Status
 
-Under active development, built milestone-by-milestone. **Milestones 1-5 are
+Under active development, built milestone-by-milestone. **Milestones 1-6 are
 complete**: scaffold, the typed `TargetAdapter` interface, a vulnerable mock
 agent, the responsible-use gate, a seeded PRNG, attack + oracle registries, five
-attack modules (direct override, jailbreak, obfuscation, **indirect prompt
-injection** through ingested web/doc/tool/email content, and **tool abuse /
-excessive agency**), three deterministic-or-fallback oracles (**canary**,
-**LLM-judge policy** with documented rubric, **tool-call-trace**), a
-**false-positive suite** (0% FP), a cost-capped + cached LLM client, an
-end-to-end scan runner (`gauntlet scan`), an Ollama adapter, and offline CI.
+static attack modules (direct override, jailbreak, obfuscation, **indirect
+prompt injection** through ingested web/doc/tool/email content, and **tool abuse
+/ excessive agency**), an **adaptive LLM-driven attacker** (bounded + cost-capped
+closed loop), three deterministic-or-fallback oracles (**canary**, **LLM-judge
+policy** with documented rubric, **tool-call-trace**), a **false-positive suite**
+(0% FP), a cost-capped + cached LLM client, an end-to-end scan runner
+(`gauntlet scan`), an Ollama adapter, and offline CI.
 
 | # | Milestone | State |
 |---|-----------|-------|
@@ -36,8 +37,8 @@ end-to-end scan runner (`gauntlet scan`), an Ollama adapter, and offline CI.
 | 3 | Canary-exfiltration oracle + policy oracle + false-positive suite | ✅ done |
 | 4 | Indirect injection: poisoned-content channel + attacks | ✅ done |
 | 5 | Tool-abuse attacks + tool-call-trace oracle | ✅ done |
-| 6 | Adaptive LLM-driven attacker (bounded, cost-capped) | ⬜ next |
-| 7 | Scoring (ASR/severity/taxonomy) + Markdown/HTML report | ⬜ |
+| 6 | Adaptive LLM-driven attacker (bounded, cost-capped) | ✅ done |
+| 7 | Scoring (ASR/severity/taxonomy) + Markdown/HTML report | ⬜ next |
 | 8 | Real adapters (HTTP, OpenAI-compatible, Playwright) + docs | ⬜ |
 
 ## Quick start
@@ -73,8 +74,9 @@ prints Attack Success Rate per family (seeded, reproducible):
 ### Try it against a real local model (Ollama)
 
 ```bash
-ollama serve                                  # in another terminal
-npx tsx examples/ollama-live.ts qwen3.5:0.8b  # one probe per attack family
+ollama serve                                      # in another terminal
+npx tsx examples/ollama-live.ts qwen3.5:0.8b      # one probe per attack family
+npx tsx examples/ollama-adaptive.ts qwen3.5:0.8b  # the adaptive closed-loop attacker
 ```
 
 Example run against `qwen3.5:0.8b` — deterministic canary/tool oracles, no LLM judge:
