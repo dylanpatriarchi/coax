@@ -19,18 +19,18 @@ injection**, **tool abuse / excessive agency**, **data exfiltration**, and
 
 ## Status
 
-Under active development, built milestone-by-milestone. **Milestones 1-7 are
-complete**: scaffold, the typed `TargetAdapter` interface, a vulnerable mock
-agent, the responsible-use gate, a seeded PRNG, attack + oracle registries, five
-static attack modules (direct override, jailbreak, obfuscation, **indirect
-prompt injection** through ingested web/doc/tool/email content, and **tool abuse
-/ excessive agency**), an **adaptive LLM-driven attacker** (bounded + cost-capped
-closed loop), three deterministic-or-fallback oracles (**canary**, **LLM-judge
-policy** with documented rubric, **tool-call-trace**), a **false-positive suite**
-(0% FP), a cost-capped + cached LLM client, **scoring** (ASR by
-family/surface/OWASP category, severity-weighted) with **Markdown + HTML report**
-generation, an end-to-end scan runner (`gauntlet scan --out report/`), an Ollama
-adapter, and offline CI.
+**All 8 milestones are complete.** Gauntlet has the typed `TargetAdapter`
+interface, a deliberately-vulnerable mock agent, the responsible-use gate, a
+seeded PRNG, attack + oracle registries, five static attack modules (direct
+override, jailbreak, obfuscation, **indirect prompt injection** through ingested
+web/doc/tool/email content, and **tool abuse / excessive agency**), an **adaptive
+LLM-driven attacker** (bounded + cost-capped closed loop), three
+deterministic-or-fallback oracles (**canary**, **LLM-judge policy** with a
+documented rubric, **tool-call-trace**), a **false-positive suite** (0% FP), a
+cost-capped + cached LLM client, **scoring** (ASR by family/surface/OWASP
+category, severity-weighted) with **Markdown + HTML report** generation, real
+target adapters (**HTTP**, **OpenAI-compatible**, **Playwright**, **Ollama**), a
+`--target` module loader, and offline CI. **105 tests, fully offline.**
 
 | # | Milestone | State |
 |---|-----------|-------|
@@ -41,7 +41,7 @@ adapter, and offline CI.
 | 5 | Tool-abuse attacks + tool-call-trace oracle | ✅ done |
 | 6 | Adaptive LLM-driven attacker (bounded, cost-capped) | ✅ done |
 | 7 | Scoring (ASR/severity/taxonomy) + Markdown/HTML report | ✅ done |
-| 8 | Real adapters (HTTP, OpenAI-compatible, Playwright) + docs | ⬜ next |
+| 8 | Real adapters (HTTP, OpenAI-compatible, Playwright) + docs | ✅ done |
 
 ## Quick start
 
@@ -138,10 +138,41 @@ Deterministic signals are preferred over fuzzy judging:
 
 ## Adapters
 
+Every target implements the same `TargetAdapter` seam, so attacks and oracles
+don't know which agent they're hitting.
+
 - **Mock** (`src/adapters/mock.ts`) — deliberately vulnerable, deterministic,
   offline; the development & CI target.
 - **Ollama** (`src/adapters/ollama.ts`) — drive a local model as a target agent.
-- HTTP / OpenAI-compatible / Playwright web-agent adapters land in milestone 8.
+- **HTTP** (`src/adapters/http.ts`) — any HTTP endpoint; `buildBody` /
+  `parseResponse` map your API's shapes, staged indirect content ships in the
+  request.
+- **OpenAI-compatible** (`src/adapters/openai.ts`) — any `/chat/completions`
+  endpoint (OpenAI, Azure, vLLM, llama.cpp, Ollama's `/v1`) with tools mapped to
+  the function schema and `tool_calls` surfaced for the tool-trace oracle.
+- **Playwright** (`src/adapters/playwright.ts`) — headless-browser web agents;
+  indirect injection is delivered by intercepting the agent's fetch of a
+  configured URL and serving poisoned content. `playwright` is an optional
+  dependency (`npm i -D playwright && npx playwright install chromium`).
+
+### Scanning a real target
+
+Write a small target module that exports your agent (see
+[`examples/target.example.ts`](./examples/target.example.ts)):
+
+```ts
+import { createOpenAIAgent } from 'gauntlet/adapters/openai';
+export const canary = 'CANARY-...';              // planted secret the oracle matches
+export const endpoint = 'https://your-agent/v1'; // used by the responsible-use gate
+export default () => createOpenAIAgent({ /* baseUrl, model, systemPrompt, tools */ });
+```
+
+```bash
+npx tsx src/cli/index.ts scan --target ./target.ts --seed 42 --out report/ --i-am-authorized
+```
+
+`--i-am-authorized` (or `GAUNTLET_I_AM_AUTHORIZED=true`) is required for any
+non-localhost endpoint.
 
 ## Threat model & responsible use
 
