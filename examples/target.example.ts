@@ -1,7 +1,7 @@
 /**
- * Example target module for `gauntlet scan --target examples/target.example.ts`.
+ * Example target module for `coax scan --target examples/target.example.ts`.
  *
- * A target module exports the agent to attack plus a little metadata Gauntlet
+ * A target module exports the agent to attack plus a little metadata COAX
  * uses. This one wraps a local OpenAI-compatible endpoint (Ollama's /v1) as a
  * support agent with a planted canary and a forbidden tool — copy and adapt it
  * to point at your own agent.

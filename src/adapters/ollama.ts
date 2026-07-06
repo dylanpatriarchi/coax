@@ -1,7 +1,7 @@
 /**
  * Ollama target adapter.
  *
- * Wraps a locally-served Ollama model as a Gauntlet target agent so attacks can
+ * Wraps a locally-served Ollama model as a COAX target agent so attacks can
  * be run against a REAL model (offline, on your machine). It is a thin agent
  * harness: a system prompt that plants a canary, an optional tool schema, and an
  * indirect-content channel that stages "ingested" material as prior context.

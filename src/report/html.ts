@@ -123,10 +123,10 @@ export function renderHtml(report: ScanReport, opts: RenderOptions = {}): string
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gauntlet report — ${esc(m.target)}</title>
+<title>COAX report — ${esc(m.target)}</title>
 <style>${STYLE}</style></head>
 <body>
-<h1>Gauntlet robustness report</h1>
+<h1>COAX robustness report</h1>
 <p class="note">Defensive testing artifact. Run only against systems you own or are authorized to test.</p>
 <p class="note"><strong>Target:</strong> <code>${esc(m.target)}</code> • <strong>Seed:</strong> ${m.seed} • reproducible from this seed.</p>
 <div class="kpis">
@@ -144,6 +144,6 @@ export function renderHtml(report: ScanReport, opts: RenderOptions = {}): string
 ${fpTable}
 <h2>Findings</h2>
 ${findings}
-${opts.generatedAt ? `<p class="note">Generated ${esc(opts.generatedAt)} by Gauntlet.</p>` : ''}
+${opts.generatedAt ? `<p class="note">Generated ${esc(opts.generatedAt)} by COAX.</p>` : ''}
 </body></html>`;
 }

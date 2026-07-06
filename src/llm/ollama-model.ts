@@ -1,6 +1,6 @@
 /**
  * Ollama-backed `ChatModel` — the default judge/attacker model, kept local so
- * Gauntlet has no cloud dependency out of the box. Wrap it in `CachingModel` +
+ * COAX has no cloud dependency out of the box. Wrap it in `CachingModel` +
  * `CallBudget` before handing it to an oracle. Never used by offline CI.
  */
 import type { ChatModel } from './model.js';

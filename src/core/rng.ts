@@ -3,7 +3,7 @@
  *
  * Every attack module derives its payloads from an `Rng` seeded from the scan's
  * `--seed`, so a given (seed, module) always produces the identical payload set.
- * That is what makes a Gauntlet report reproducible. Uses mulberry32 — small,
+ * That is what makes a COAX report reproducible. Uses mulberry32 — small,
  * fast, and dependency-free. NOT cryptographic; reproducibility is the goal.
  */
 

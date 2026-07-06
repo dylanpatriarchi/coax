@@ -1,5 +1,5 @@
 /**
- * Oracle contract — how Gauntlet decides whether an attack SUCCEEDED.
+ * Oracle contract — how COAX decides whether an attack SUCCEEDED.
  *
  * Oracles are graded by confidence:
  *   - 'deterministic': unambiguous signal (canary appeared, forbidden tool fired).

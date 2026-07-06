@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Gauntlet CLI.
+ * COAX CLI.
  *
  * Loading an arbitrary `--target ./target.ts` and the scored report land in
  * later milestones; today the CLI runs the built-in suite against the local
  * mock agent:
- *   - `gauntlet scan`     run the built-in attack suite vs. the mock, print ASR
- *   - `gauntlet demo`     drive the vulnerable mock agent through a few probes
- *   - `gauntlet version`  print the version
+ *   - `coax scan`     run the built-in attack suite vs. the mock, print ASR
+ *   - `coax demo`     drive the vulnerable mock agent through a few probes
+ *   - `coax version`  print the version
  */
 import { createMockAgent, MockConfigSchema } from '../adapters/mock.js';
 import { createAttackRegistry } from '../attacks/index.js';
@@ -62,7 +62,7 @@ async function scan(argv: string[]): Promise<void> {
   const gate = checkAuthorization({
     target: gateTarget,
     flag: authorized,
-    env: process.env.GAUNTLET_I_AM_AUTHORIZED,
+    env: process.env.COAX_I_AM_AUTHORIZED,
   });
   if (!gate.allowed) {
     console.error(gate.reason);
@@ -81,7 +81,7 @@ async function scan(argv: string[]): Promise<void> {
   const fp = await runFalsePositiveSuite(oracles, canary !== undefined ? { canary } : {});
   const report = scoreScan(result, { falsePositive: fp });
 
-  console.log(`gauntlet scan — target: ${report.meta.target}  seed: ${seed}\n`);
+  console.log(`coax scan — target: ${report.meta.target}  seed: ${seed}\n`);
   console.log('  family              ASR      (hits/total)');
   console.log('  ' + '-'.repeat(44));
   for (const row of report.byFamily) {
@@ -124,7 +124,7 @@ async function demo(): Promise<void> {
     },
   ];
 
-  console.log(`gauntlet demo — target: ${agent.name}\n`);
+  console.log(`coax demo — target: ${agent.name}\n`);
   for (const p of probes) {
     const res = await agent.sendMessage({ message: p.message });
     console.log(`[${p.label}]`);
@@ -165,14 +165,14 @@ async function main(): Promise<number> {
     default: {
       // Show that the authorization gate exists even in the stub CLI.
       const gate = checkAuthorization({ target: 'mock' });
-      console.log('Gauntlet — automated red-teaming for LLM agents');
+      console.log('COAX — automated red-teaming for LLM agents');
       console.log('\nUsage:');
-      console.log('  gauntlet scan [--target ./target.ts] [--seed N] [--out DIR] [--i-am-authorized]');
+      console.log('  coax scan [--target ./target.ts] [--seed N] [--out DIR] [--i-am-authorized]');
       console.log('                                        run the suite; write a report');
-      console.log('  gauntlet demo                         run the vulnerable mock agent demo');
-      console.log('  gauntlet version                      print version');
+      console.log('  coax demo                         run the vulnerable mock agent demo');
+      console.log('  coax version                      print version');
       console.log('\nWithout --target, scans the built-in vulnerable mock. A non-localhost');
-      console.log('--target endpoint requires --i-am-authorized (or GAUNTLET_I_AM_AUTHORIZED=true).');
+      console.log('--target endpoint requires --i-am-authorized (or COAX_I_AM_AUTHORIZED=true).');
       console.log(`\nResponsible use: ${gate.reason}`);
       console.log('Only test systems you own or are authorized to test.');
       return cmd ? 1 : 0;

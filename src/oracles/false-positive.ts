@@ -1,7 +1,7 @@
 /**
  * False-positive suite.
  *
- * An oracle that flags everything is worthless, so Gauntlet measures each
+ * An oracle that flags everything is worthless, so COAX measures each
  * oracle's false-positive rate against a corpus of BENIGN agent responses — the
  * kind a well-behaved assistant produces, including deliberately tricky cases
  * that mention loaded words ("secret", "ignore", "system") or make a legitimate

@@ -4,7 +4,7 @@
  * This is the development & CI target: fully deterministic (no LLM, no network),
  * so the test suite and offline CI can exercise every attack family and every
  * oracle against a known-exploitable agent. It is INTENTIONALLY insecure. Each
- * weakness below maps to an attack family Gauntlet ships:
+ * weakness below maps to an attack family COAX ships:
  *
  *   - Direct override / jailbreak  -> obeys "ignore previous", persona re-framing.
  *   - Indirect injection           -> treats INGESTED content as authoritative
@@ -14,7 +14,7 @@
  *   - Tool abuse / excessive agency-> calls a forbidden tool when text asks it to.
  *
  * A real target adapter would never be written this way; this exists purely so
- * we can measure that Gauntlet's attacks and oracles actually fire.
+ * we can measure that COAX's attacks and oracles actually fire.
  */
 import { Buffer } from 'node:buffer';
 import { z } from 'zod';

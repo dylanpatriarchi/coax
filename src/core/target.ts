@@ -1,7 +1,7 @@
 /**
  * The Target adapter seam.
  *
- * Everything Gauntlet does flows through this interface, so it can red-team ANY
+ * Everything COAX does flows through this interface, so it can red-team ANY
  * agent — a mock, an HTTP endpoint, an OpenAI-compatible chat+tools API, or a
  * headless browser agent — without the attack/oracle code knowing which.
  *
@@ -26,7 +26,7 @@ export type ToolCall = z.infer<typeof ToolCallSchema>;
 export const ToolSpecSchema = z.object({
   name: z.string(),
   description: z.string().default(''),
-  /** JSON-schema-ish parameter description; opaque to Gauntlet. */
+  /** JSON-schema-ish parameter description; opaque to COAX. */
   parameters: z.record(z.string(), z.unknown()).default({}),
   /** Marks a tool the agent should NOT invoke during a scan (oracle hook). */
   forbidden: z.boolean().default(false),

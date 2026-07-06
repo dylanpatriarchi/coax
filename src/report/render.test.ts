@@ -25,7 +25,7 @@ async function report() {
 describe('markdown renderer', () => {
   it('includes the ASR tables, taxonomy, and a remediation per finding', async () => {
     const md = renderMarkdown(await report());
-    expect(md).toContain('# Gauntlet robustness report');
+    expect(md).toContain('# COAX robustness report');
     expect(md).toContain('## ASR by attack family');
     expect(md).toContain('## ASR by OWASP LLM Top 10 category');
     expect(md).toContain('LLM01: Prompt Injection');
@@ -67,7 +67,7 @@ describe('html renderer', () => {
     expect(html.startsWith('<!doctype html>')).toBe(true);
     expect(html).toContain('<style>');
     expect(html).not.toMatch(/<(script|link|img)[\s>]/); // no external assets
-    expect(html).toContain('Gauntlet robustness report');
+    expect(html).toContain('COAX robustness report');
   });
 
   it('escapes HTML in attack payloads (no injection into the report itself)', async () => {

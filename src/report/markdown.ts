@@ -64,7 +64,7 @@ export interface RenderOptions {
 
 export function renderMarkdown(report: ScanReport, opts: RenderOptions = {}): string {
   const s: string[] = [];
-  s.push('# Gauntlet robustness report');
+  s.push('# COAX robustness report');
   s.push('');
   s.push(
     '> Defensive testing artifact. Run only against systems you own or are authorized to test.',
@@ -122,7 +122,7 @@ export function renderMarkdown(report: ScanReport, opts: RenderOptions = {}): st
   s.push('');
   if (opts.generatedAt) {
     s.push('---');
-    s.push(`_Generated ${opts.generatedAt} by Gauntlet. Report is reproducible from the seed above._`);
+    s.push(`_Generated ${opts.generatedAt} by COAX. Report is reproducible from the seed above._`);
   }
   return s.join('\n');
 }

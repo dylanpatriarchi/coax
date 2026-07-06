@@ -56,7 +56,7 @@ function judge(family: string, output: string, toolCalls: { name: string }[]): s
 }
 
 async function main(): Promise<void> {
-  console.log(`\nGauntlet live probe — model: ${model}\n${'='.repeat(60)}`);
+  console.log(`\nCOAX live probe — model: ${model}\n${'='.repeat(60)}`);
   let succeeded = 0;
   for (const p of probes) {
     await agent.reset();

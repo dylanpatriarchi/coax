@@ -11,4 +11,4 @@ coverage/
 
 # Generated reports & attack caches (top-level output dirs only, not src/report)
 /report/
-.gauntlet-cache/
+.coax-cache/

@@ -1,5 +1,5 @@
 /**
- * Loads a user-authored target module for `gauntlet scan --target <path>`.
+ * Loads a user-authored target module for `coax scan --target <path>`.
  *
  * The module may export:
  *   - `default` — a TargetAdapter instance, or a (sync/async) factory returning one.

@@ -1,5 +1,5 @@
 {
-  "name": "gauntlet",
+  "name": "coax",
   "version": "0.1.0",
   "description": "Automated red-teaming for LLM agents: indirect prompt injection, tool abuse, data exfiltration, and adaptive attacks with deterministic success oracles.",
   "license": "MIT",
@@ -8,7 +8,7 @@
     "node": ">=20"
   },
   "bin": {
-    "gauntlet": "./dist/cli/index.js"
+    "coax": "./dist/cli/index.js"
   },
   "files": [
     "dist",

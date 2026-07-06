@@ -1,10 +1,10 @@
 /**
  * Responsible-use gate.
  *
- * Gauntlet is a defensive tool: run it only against agents you own or are
+ * COAX is a defensive tool: run it only against agents you own or are
  * explicitly authorized to test. To make misuse harder by accident, any target
  * that is NOT localhost requires an explicit authorization acknowledgement
- * (CLI flag `--i-am-authorized` or env `GAUNTLET_I_AM_AUTHORIZED=true`).
+ * (CLI flag `--i-am-authorized` or env `COAX_I_AM_AUTHORIZED=true`).
  */
 
 const LOCALHOST_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '0.0.0.0']);
@@ -25,7 +25,7 @@ export interface AuthzInput {
   target: string;
   /** From `--i-am-authorized`. */
   flag?: boolean;
-  /** From `GAUNTLET_I_AM_AUTHORIZED` (any of true/1/yes). */
+  /** From `COAX_I_AM_AUTHORIZED` (any of true/1/yes). */
   env?: string | undefined;
 }
 
@@ -52,6 +52,6 @@ export function checkAuthorization(input: AuthzInput): AuthzResult {
     reason:
       'Refusing to scan a non-localhost target without authorization. Only test systems you own ' +
       'or are authorized to test. Re-run with --i-am-authorized (or set ' +
-      'GAUNTLET_I_AM_AUTHORIZED=true) to confirm.',
+      'COAX_I_AM_AUTHORIZED=true) to confirm.',
   };
 }

@@ -36,7 +36,7 @@ jobs:
       - name: Test (offline)
         run: npm test
         env:
-          GAUNTLET_OFFLINE: '1'
+          COAX_OFFLINE: '1'
 
       - name: Build
         run: npm run build
