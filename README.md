@@ -1,17 +1,17 @@
-# Gauntlet
+# COAX
 
 **Automated red-teaming for LLM _agents_** — not just chat completions.
 
-Gauntlet attacks a target agent, detects when an attack succeeds using
+COAX attacks a target agent, detects when an attack succeeds using
 **deterministic oracles**, and produces a reproducible robustness report scored
 per attack category. The focus is agent-specific threats: **indirect prompt
 injection**, **tool abuse / excessive agency**, **data exfiltration**, and
 **adaptive multi-turn attacks** — mapped to the OWASP LLM Top 10.
 
-> ⚠️ **Responsible use.** Gauntlet is a defensive tool for testing systems you
+> ⚠️ **Responsible use.** COAX is a defensive tool for testing systems you
 > own or are explicitly authorized to test. Running against any non-localhost
 > target requires an explicit acknowledgement (`--i-am-authorized` or
-> `GAUNTLET_I_AM_AUTHORIZED=true`). It uses only known, published technique
+> `COAX_I_AM_AUTHORIZED=true`). It uses only known, published technique
 > families for measurement — it does not synthesize novel exploits. See
 > [Threat model](#threat-model--responsible-use).
 
@@ -19,7 +19,7 @@ injection**, **tool abuse / excessive agency**, **data exfiltration**, and
 
 ## Status
 
-**All 8 milestones are complete.** Gauntlet has the typed `TargetAdapter`
+**All 8 milestones are complete.** COAX has the typed `TargetAdapter`
 interface, a deliberately-vulnerable mock agent, the responsible-use gate, a
 seeded PRNG, attack + oracle registries, five static attack modules (direct
 override, jailbreak, obfuscation, **indirect prompt injection** through ingested
@@ -53,11 +53,11 @@ npx tsx src/cli/index.ts scan --seed 42 --out report/   # run suite + write repo
 npx tsx src/cli/index.ts demo                           # drive the vulnerable mock agent
 ```
 
-With `--out report/`, Gauntlet writes a `report.md` and a self-contained
+With `--out report/`, COAX writes a `report.md` and a self-contained
 `report.html` containing the ASR tables, each successful attack's reproducible
 transcript, its severity and OWASP mapping, and a concrete remediation.
 
-`gauntlet scan` runs the built-in attack suite against the local mock agent and
+`COAX scan` runs the built-in attack suite against the local mock agent and
 prints Attack Success Rate per family (seeded, reproducible):
 
 ```
@@ -98,7 +98,7 @@ Attacks that landed: 3/5
 
 ## Architecture
 
-Everything flows through one small typed seam, so Gauntlet can red-team **any**
+Everything flows through one small typed seam, so COAX can red-team **any**
 agent without the attack/oracle code knowing which:
 
 ```ts
@@ -161,7 +161,7 @@ Write a small target module that exports your agent (see
 [`examples/target.example.ts`](./examples/target.example.ts)):
 
 ```ts
-import { createOpenAIAgent } from 'gauntlet/adapters/openai';
+import { createOpenAIAgent } from 'COAX/adapters/openai';
 export const canary = 'CANARY-...';              // planted secret the oracle matches
 export const endpoint = 'https://your-agent/v1'; // used by the responsible-use gate
 export default () => createOpenAIAgent({ /* baseUrl, model, systemPrompt, tools */ });
@@ -171,16 +171,16 @@ export default () => createOpenAIAgent({ /* baseUrl, model, systemPrompt, tools 
 npx tsx src/cli/index.ts scan --target ./target.ts --seed 42 --out report/ --i-am-authorized
 ```
 
-`--i-am-authorized` (or `GAUNTLET_I_AM_AUTHORIZED=true`) is required for any
+`--i-am-authorized` (or `COAX_I_AM_AUTHORIZED=true`) is required for any
 non-localhost endpoint.
 
 ## Threat model & responsible use
 
 - **Purpose:** defensive testing of systems you own or are authorized to test.
 - Non-localhost targets require `--i-am-authorized` (or
-  `GAUNTLET_I_AM_AUTHORIZED=true`). Local targets (the mock, `localhost`) run
+  `COAX_I_AM_AUTHORIZED=true`). Local targets (the mock, `localhost`) run
   freely.
-- Gauntlet evaluates with **known, published** technique families. It does not
+- COAX evaluates with **known, published** technique families. It does not
   attempt to synthesize novel weaponizable exploits — the value is measurement.
 - No secrets or real target credentials are committed; copy `.env.example` to
   `.env` (gitignored) for any live-model configuration.
