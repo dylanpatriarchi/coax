@@ -112,8 +112,12 @@ export async function driveTurn(
 
 /** Flatten a scenario into a single `Attempt` so the scorer/report can consume it. */
 export function scenarioToAttempt(result: ScenarioResult): Attempt {
-  // The decisive turn is the first success, else the last turn.
-  const decisive = result.turns.find((t) => t.success) ?? result.turns[result.turns.length - 1];
+  // The decisive turn is the LAST successful turn (else the last turn). Using the
+  // last — not the first — success is what makes memory-poisoning attribute to the
+  // post-reset re-activation turn, not the session-A plant that also leaks.
+  let lastSuccess: ScenarioTurn | undefined;
+  for (const t of result.turns) if (t.success) lastSuccess = t;
+  const decisive = lastSuccess ?? result.turns[result.turns.length - 1];
   const transcript = result.turns
     .map((t) => `Turn ${t.index}${t.newSession ? ' (new session)' : ''}: ${t.message}`)
     .join('\n');

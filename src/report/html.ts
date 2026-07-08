@@ -125,6 +125,13 @@ export function renderHtml(report: ScanReport, opts: RenderOptions = {}): string
     atlasRows.length > 0
       ? `<h2>ASR by MITRE ATLAS technique</h2><table><thead><tr><th>ATLAS technique</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${taxonomyRows(atlasRows)}</tbody></table>`
       : '';
+  const otherRows = report.byTaxonomy.filter(
+    (t) => t.scheme !== 'owasp-llm' && t.scheme !== 'owasp-asi' && t.scheme !== 'mitre-atlas',
+  );
+  const otherTable =
+    otherRows.length > 0
+      ? `<h2>ASR by other tags</h2><table><thead><tr><th>Tag</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${taxonomyRows(otherRows)}</tbody></table>`
+      : '';
 
   const utilityBlock = report.utility
     ? `<h2>Utility (usefulness vs. security)</h2><table><thead><tr><th>Measure</th><th>Rate</th><th>Passed</th><th>Total</th></tr></thead><tbody>` +
@@ -161,6 +168,7 @@ export function renderHtml(report: ScanReport, opts: RenderOptions = {}): string
 <table><thead><tr><th>OWASP LLM category</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${taxonomyRows(report.byTaxonomy.filter((t) => t.scheme === 'owasp-llm'))}</tbody></table>
 ${asiTable}
 ${atlasTable}
+${otherTable}
 ${utilityBlock}
 ${fpTable}
 <h2>Findings</h2>

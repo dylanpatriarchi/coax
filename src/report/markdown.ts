@@ -116,6 +116,15 @@ export function renderMarkdown(report: ScanReport, opts: RenderOptions = {}): st
     s.push(taxonomyTable(atlas, 'ATLAS technique'));
     s.push('');
   }
+  const otherTax = report.byTaxonomy.filter(
+    (t) => t.scheme !== 'owasp-llm' && t.scheme !== 'owasp-asi' && t.scheme !== 'mitre-atlas',
+  );
+  if (otherTax.length > 0) {
+    s.push('## ASR by other tags');
+    s.push('');
+    s.push(taxonomyTable(otherTax, 'Tag'));
+    s.push('');
+  }
 
   if (report.utility) {
     const u = report.utility;

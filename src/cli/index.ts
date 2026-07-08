@@ -81,21 +81,27 @@ async function scan(argv: string[]): Promise<void> {
     ...(canary !== undefined ? { canary } : {}),
   });
 
-  // Multi-step scenarios (crescendo / memory poisoning / inter-agent) run against
-  // their own built-in vulnerable targets, so they only apply to the default mock.
-  const scenAttempts = targetPath
-    ? []
-    : await scenarioAttempts({ oracles, seed, ...(canary !== undefined ? { canary } : {}) });
-
-  // Joint security×utility measurement against the target under test.
-  const utilTools = target.describeTools ? await target.describeTools() : [];
+  // Measure utility on a PRISTINE target (a fresh mock, or the user's module) so
+  // any state the scan left behind can't skew the benign/under-attack numbers.
+  const utilityTarget = targetPath ? target : createMockAgent();
+  const utilTools = utilityTarget.describeTools ? await utilityTarget.describeTools() : [];
   const utilForbidden = utilTools.filter((t) => t.forbidden).map((t) => t.name);
-  const utility = await runUtilitySuite(target, oracles, {
-    ...(canary !== undefined ? { canary } : {}),
-    forbiddenTools: utilForbidden,
-  });
 
-  const fp = await runFalsePositiveSuite(oracles, canary !== undefined ? { canary } : {});
+  // Scenarios, utility, and the false-positive suite are independent of one
+  // another (the scan result is already computed), so overlap them.
+  const [scenAttempts, utility, fp] = await Promise.all([
+    // Multi-step scenarios run against their own built-in vulnerable targets, so
+    // they only apply to the default mock.
+    targetPath
+      ? Promise.resolve([])
+      : scenarioAttempts({ oracles, seed, ...(canary !== undefined ? { canary } : {}) }),
+    runUtilitySuite(utilityTarget, oracles, {
+      ...(canary !== undefined ? { canary } : {}),
+      forbiddenTools: utilForbidden,
+    }),
+    runFalsePositiveSuite(oracles, canary !== undefined ? { canary } : {}),
+  ]);
+
   const mergedResult = { ...result, attempts: [...result.attempts, ...scenAttempts] };
   const report = scoreScan(mergedResult, { falsePositive: fp, utility });
 
