@@ -24,7 +24,7 @@ describe('tool-abuse module', () => {
     expect(payloads.length).toBeGreaterThan(0);
     for (const p of payloads) {
       expect(() => AttackPayloadSchema.parse(p)).not.toThrow();
-      expect(['send_email', 'delete_file']).toContain(p.metadata.tool);
+      expect(['send_email', 'delete_file', 'run_code', 'fetch_url']).toContain(p.metadata.tool);
     }
     const deliveries = new Set(payloads.map((p) => p.metadata.delivery));
     expect(deliveries).toEqual(new Set(['direct', 'indirect']));
@@ -47,7 +47,9 @@ describe('tool-abuse module', () => {
   });
 
   it('is defended when the target will not call tools from text', async () => {
-    const hardened = createMockAgent({ vulnerabilities: { callToolsFromText: false } });
+    const hardened = createMockAgent({
+      vulnerabilities: { callToolsFromText: false, executeCode: false, runawayLoops: false },
+    });
     const result = await runScan({
       target: hardened,
       modules: [toolAbuseModule],

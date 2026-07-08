@@ -48,6 +48,9 @@ describe('runScan', () => {
         decodeBase64: false,
         leakOnAsk: false,
         callToolsFromText: false,
+        executeCode: false,
+        runawayLoops: false,
+        persistMemory: false,
       },
     });
     const result = await runScan({

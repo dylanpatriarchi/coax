@@ -17,6 +17,10 @@ describe('attack registry', () => {
       'obfuscation',
       'indirect-injection',
       'tool-abuse',
+      'goal-hijack',
+      'supply-chain',
+      'unbounded-consumption',
+      'code-execution',
     ]);
   });
 });

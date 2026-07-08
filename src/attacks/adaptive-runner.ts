@@ -25,6 +25,8 @@ export interface AdaptiveRunOptions {
   maxModelCalls?: number;
   /** Attacker model. Defaults to local Ollama. */
   model?: ChatModel;
+  /** True multi-turn crescendo: keep one session across iterations. */
+  persist?: boolean;
 }
 
 export async function runAdaptive(opts: AdaptiveRunOptions): Promise<AdaptiveResult> {
@@ -41,5 +43,6 @@ export async function runAdaptive(opts: AdaptiveRunOptions): Promise<AdaptiveRes
     ...(opts.canary !== undefined ? { canary: opts.canary } : {}),
     ...(opts.forbiddenTools !== undefined ? { forbiddenTools: opts.forbiddenTools } : {}),
     maxIterations,
+    ...(opts.persist !== undefined ? { persist: opts.persist } : {}),
   });
 }
