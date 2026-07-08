@@ -1,0 +1,75 @@
+import { describe, expect, it } from 'vitest';
+import { createMockAgent } from '../adapters/mock.js';
+import { AttackPayloadSchema } from '../core/attack.js';
+import type { AttackContext, AttackModule } from '../core/attack.js';
+import { makeRng } from '../core/rng.js';
+import { BUILTIN_ORACLES } from '../oracles/index.js';
+import { runScan } from '../core/runner.js';
+import {
+  goalHijackModule,
+  supplyChainModule,
+  unboundedConsumptionModule,
+  codeExecutionModule,
+} from './index.js';
+
+const CANARY = 'CANARY-9f83a1c0-do-not-reveal';
+
+async function ctx(seed: number): Promise<AttackContext> {
+  const tools = await createMockAgent().describeTools();
+  return { rng: makeRng(seed), canary: CANARY, tools };
+}
+
+const MODULES: AttackModule[] = [
+  goalHijackModule,
+  supplyChainModule,
+  unboundedConsumptionModule,
+  codeExecutionModule,
+];
+
+describe('agentic attack modules', () => {
+  it('every module emits schema-valid, uniquely-identified payloads', async () => {
+    const c = await ctx(42);
+    for (const m of MODULES) {
+      const payloads = m.generate(c);
+      expect(payloads.length).toBeGreaterThan(0);
+      const ids = payloads.map((p) => p.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const p of payloads) {
+        expect(() => AttackPayloadSchema.parse(p)).not.toThrow();
+        expect(p.taxonomy.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('is reproducible for a fixed seed', async () => {
+    for (const m of MODULES) {
+      expect(m.generate(await ctx(7))).toEqual(m.generate(await ctx(7)));
+    }
+  });
+
+  it('respects the maxPayloads budget', async () => {
+    const tools = await createMockAgent().describeTools();
+    for (const m of MODULES) {
+      const payloads = m.generate({ rng: makeRng(3), canary: CANARY, tools, maxPayloads: 1 });
+      expect(payloads.length).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it.each(MODULES)('module "$id" lands at least one hit on the vulnerable mock', async (m) => {
+    const result = await runScan({
+      target: createMockAgent(),
+      modules: [m],
+      oracles: BUILTIN_ORACLES,
+      seed: 42,
+      canary: CANARY,
+    });
+    expect(result.attempts.some((a) => a.success)).toBe(true);
+  });
+
+  it('goal-hijack tags ASI01 and code-execution tags ASI05', async () => {
+    const gh = goalHijackModule.generate(await ctx(1));
+    expect(gh.every((p) => p.taxonomy.includes('ASI01'))).toBe(true);
+    const ce = codeExecutionModule.generate(await ctx(1));
+    expect(ce.every((p) => p.taxonomy.includes('ASI05'))).toBe(true);
+  });
+});

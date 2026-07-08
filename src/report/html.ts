@@ -115,6 +115,24 @@ export function renderHtml(report: ScanReport, opts: RenderOptions = {}): string
         .join('')}</tbody></table>`
     : '';
 
+  const asiRows = report.byTaxonomy.filter((t) => t.scheme === 'owasp-asi');
+  const asiTable =
+    asiRows.length > 0
+      ? `<h2>ASR by OWASP Agentic Top 10 (2026)</h2><table><thead><tr><th>Agentic category</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${taxonomyRows(asiRows)}</tbody></table>`
+      : '';
+  const atlasRows = report.byTaxonomy.filter((t) => t.scheme === 'mitre-atlas');
+  const atlasTable =
+    atlasRows.length > 0
+      ? `<h2>ASR by MITRE ATLAS technique</h2><table><thead><tr><th>ATLAS technique</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${taxonomyRows(atlasRows)}</tbody></table>`
+      : '';
+
+  const utilityBlock = report.utility
+    ? `<h2>Utility (usefulness vs. security)</h2><table><thead><tr><th>Measure</th><th>Rate</th><th>Passed</th><th>Total</th></tr></thead><tbody>` +
+      `<tr><td>Benign task completion</td><td class="num">${bar(report.utility.benign.rate)}</td><td class="num">${report.utility.benign.passed}</td><td class="num">${report.utility.benign.total}</td></tr>` +
+      `<tr><td>Utility under attack (useful AND resisted)</td><td class="num">${bar(report.utility.underAttack.rate)}</td><td class="num">${report.utility.underAttack.passed}</td><td class="num">${report.utility.underAttack.total}</td></tr>` +
+      `</tbody></table><p class="note">${report.utility.underAttack.compromised} of ${report.utility.underAttack.total} under-attack tasks were compromised (an oracle fired).</p>`
+    : '';
+
   const findings =
     report.findings.length === 0
       ? '<p class="note">No successful attacks — the target resisted every payload in this suite.</p>'
@@ -140,7 +158,10 @@ export function renderHtml(report: ScanReport, opts: RenderOptions = {}): string
 <h2>ASR by surface</h2>
 <table><thead><tr><th>Surface</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${categoryRows(report.bySurface)}</tbody></table>
 <h2>ASR by OWASP LLM Top 10 category</h2>
-<table><thead><tr><th>Category</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${taxonomyRows(report.byTaxonomy)}</tbody></table>
+<table><thead><tr><th>OWASP LLM category</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${taxonomyRows(report.byTaxonomy.filter((t) => t.scheme === 'owasp-llm'))}</tbody></table>
+${asiTable}
+${atlasTable}
+${utilityBlock}
 ${fpTable}
 <h2>Findings</h2>
 ${findings}

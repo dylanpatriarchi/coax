@@ -15,6 +15,8 @@ import { checkAuthorization } from '../core/authorization.js';
 import { createOracleRegistry } from '../oracles/index.js';
 import { runFalsePositiveSuite } from '../oracles/false-positive.js';
 import { runScan } from '../core/runner.js';
+import { scenarioAttempts } from '../scenarios/index.js';
+import { runUtilitySuite } from '../report/utility.js';
 import { scoreScan } from '../report/scoring.js';
 import { renderMarkdown } from '../report/markdown.js';
 import { renderHtml } from '../report/html.js';
@@ -78,8 +80,24 @@ async function scan(argv: string[]): Promise<void> {
     seed,
     ...(canary !== undefined ? { canary } : {}),
   });
+
+  // Multi-step scenarios (crescendo / memory poisoning / inter-agent) run against
+  // their own built-in vulnerable targets, so they only apply to the default mock.
+  const scenAttempts = targetPath
+    ? []
+    : await scenarioAttempts({ oracles, seed, ...(canary !== undefined ? { canary } : {}) });
+
+  // Joint security×utility measurement against the target under test.
+  const utilTools = target.describeTools ? await target.describeTools() : [];
+  const utilForbidden = utilTools.filter((t) => t.forbidden).map((t) => t.name);
+  const utility = await runUtilitySuite(target, oracles, {
+    ...(canary !== undefined ? { canary } : {}),
+    forbiddenTools: utilForbidden,
+  });
+
   const fp = await runFalsePositiveSuite(oracles, canary !== undefined ? { canary } : {});
-  const report = scoreScan(result, { falsePositive: fp });
+  const mergedResult = { ...result, attempts: [...result.attempts, ...scenAttempts] };
+  const report = scoreScan(mergedResult, { falsePositive: fp, utility });
 
   console.log(`coax scan — target: ${report.meta.target}  seed: ${seed}\n`);
   console.log('  family              ASR      (hits/total)');
@@ -92,6 +110,25 @@ async function scan(argv: string[]): Promise<void> {
   console.log(
     `  ${'OVERALL'.padEnd(20)} ${(report.overall.asr * 100).toFixed(0).padStart(3)}%     ` +
       `(${report.overall.hits}/${report.overall.total})   severity-weighted ${(report.overall.weightedAsr * 100).toFixed(0)}%`,
+  );
+
+  const asiRows = report.byTaxonomy.filter((t) => t.scheme === 'owasp-asi');
+  if (asiRows.length > 0) {
+    console.log('\n  ASR by OWASP Agentic Top 10 (2026):');
+    for (const row of asiRows) {
+      const asr = (row.asr * 100).toFixed(0).padStart(3);
+      console.log(`  ${row.key.padEnd(20)} ${asr}%     (${row.hits}/${row.total})  ${row.label.split(': ')[1] ?? ''}`);
+    }
+  }
+
+  console.log('\n  utility (usefulness vs. security):');
+  console.log(
+    `  ${'benign tasks'.padEnd(20)} ${(utility.benign.rate * 100).toFixed(0).padStart(3)}%     ` +
+      `(${utility.benign.passed}/${utility.benign.total} completed)`,
+  );
+  console.log(
+    `  ${'under attack'.padEnd(20)} ${(utility.underAttack.rate * 100).toFixed(0).padStart(3)}%     ` +
+      `(${utility.underAttack.passed}/${utility.underAttack.total} useful+resisted, ${utility.underAttack.compromised} compromised)`,
   );
 
   console.log('\n  oracle false-positive rate (benign corpus):');

@@ -29,6 +29,12 @@ export interface AdaptiveContext {
   forbiddenTools?: string[];
   /** Hard cap on loop iterations (each = one attacker call + one target call). */
   maxIterations: number;
+  /**
+   * True multi-turn crescendo: keep ONE session across iterations (reset once at
+   * the start, never between turns) so the attacker escalates against accumulated
+   * context. Default (false) resets before every attempt for independent probes.
+   */
+  persist?: boolean;
 }
 
 export interface AdaptiveRound {
@@ -124,6 +130,9 @@ export async function runAdaptiveAttack(ctx: AdaptiveContext): Promise<AdaptiveR
   const rounds: AdaptiveRound[] = [];
   let stoppedBy: AdaptiveResult['stoppedBy'] = 'exhausted';
 
+  // Crescendo mode: reset ONCE up front, then let the session accumulate.
+  if (ctx.persist && ctx.target.reset) await ctx.target.reset();
+
   for (let i = 1; i <= ctx.maxIterations; i++) {
     let raw: string;
     try {
@@ -143,14 +152,18 @@ export async function runAdaptiveAttack(ctx: AdaptiveContext): Promise<AdaptiveR
       continue;
     }
 
-    if (ctx.target.reset) await ctx.target.reset();
+    // Independent-probe mode resets between attempts; crescendo mode does not.
+    if (!ctx.persist && ctx.target.reset) await ctx.target.reset();
     let inject: InjectedContent | undefined;
     if (move.injectedContent && move.channel && supportsInjection(ctx.target)) {
       inject = { channel: move.channel, source: 'adaptive-injected-content', content: move.injectedContent };
       await ctx.target.injectContent(inject);
     }
 
-    const response = await ctx.target.sendMessage({ message: move.userMessage });
+    const response = await ctx.target.sendMessage({
+      message: move.userMessage,
+      ...(ctx.persist ? { conversationId: 'adaptive-crescendo' } : {}),
+    });
 
     const verdicts: OracleVerdict[] = [];
     for (const oracle of ctx.oracles) {

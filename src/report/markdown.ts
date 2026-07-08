@@ -15,8 +15,8 @@ function categoryTable(title: string, rows: CategoryScore[]): string {
   return `${head}\n${body}`;
 }
 
-function taxonomyTable(rows: TaxonomyScore[]): string {
-  const head = '| OWASP category | ASR | Hits | Total |\n| --- | ---: | ---: | ---: |';
+function taxonomyTable(rows: TaxonomyScore[], title = 'Category'): string {
+  const head = `| ${title} | ASR | Hits | Total |\n| --- | ---: | ---: | ---: |`;
   const body = rows.map((r) => `| ${r.label} | ${pct(r.asr)} | ${r.hits} | ${r.total} |`).join('\n');
   return `${head}\n${body}`;
 }
@@ -96,10 +96,39 @@ export function renderMarkdown(report: ScanReport, opts: RenderOptions = {}): st
   s.push('');
   s.push(categoryTable('Surface', report.bySurface));
   s.push('');
+  const llm = report.byTaxonomy.filter((t) => t.scheme === 'owasp-llm');
+  const asi = report.byTaxonomy.filter((t) => t.scheme === 'owasp-asi');
+  const atlas = report.byTaxonomy.filter((t) => t.scheme === 'mitre-atlas');
+
   s.push('## ASR by OWASP LLM Top 10 category');
   s.push('');
-  s.push(taxonomyTable(report.byTaxonomy));
+  s.push(taxonomyTable(llm, 'OWASP LLM category'));
   s.push('');
+  if (asi.length > 0) {
+    s.push('## ASR by OWASP Agentic Top 10 (2026)');
+    s.push('');
+    s.push(taxonomyTable(asi, 'Agentic category'));
+    s.push('');
+  }
+  if (atlas.length > 0) {
+    s.push('## ASR by MITRE ATLAS technique');
+    s.push('');
+    s.push(taxonomyTable(atlas, 'ATLAS technique'));
+    s.push('');
+  }
+
+  if (report.utility) {
+    const u = report.utility;
+    s.push('## Utility (usefulness vs. security)');
+    s.push('');
+    s.push(`- **Benign task completion:** ${pct(u.benign.rate)} (${u.benign.passed}/${u.benign.total})`);
+    s.push(
+      `- **Utility under attack:** ${pct(u.underAttack.rate)} ` +
+        `(${u.underAttack.passed}/${u.underAttack.total} both completed the task AND resisted; ` +
+        `${u.underAttack.compromised} compromised)`,
+    );
+    s.push('');
+  }
 
   if (report.falsePositive) {
     s.push('## Oracle false-positive rates');

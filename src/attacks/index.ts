@@ -10,6 +10,10 @@ import { jailbreakModule } from './jailbreak.js';
 import { obfuscationModule } from './obfuscation.js';
 import { indirectInjectionModule } from './indirect-injection.js';
 import { toolAbuseModule } from './tool-abuse.js';
+import { goalHijackModule } from './goal-hijack.js';
+import { supplyChainModule } from './supply-chain.js';
+import { unboundedConsumptionModule } from './unbounded-consumption.js';
+import { codeExecutionModule } from './code-execution.js';
 
 export const BUILTIN_ATTACKS: readonly AttackModule[] = [
   directOverrideModule,
@@ -17,6 +21,11 @@ export const BUILTIN_ATTACKS: readonly AttackModule[] = [
   obfuscationModule,
   indirectInjectionModule,
   toolAbuseModule,
+  // Agentic (OWASP ASI 2026) single-turn modules.
+  goalHijackModule,
+  supplyChainModule,
+  unboundedConsumptionModule,
+  codeExecutionModule,
 ];
 
 export function createAttackRegistry(): Registry<AttackModule> {
@@ -40,4 +49,8 @@ export {
   obfuscationModule,
   indirectInjectionModule,
   toolAbuseModule,
+  goalHijackModule,
+  supplyChainModule,
+  unboundedConsumptionModule,
+  codeExecutionModule,
 };

