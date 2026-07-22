@@ -21,6 +21,7 @@ describe('attack registry', () => {
       'supply-chain',
       'unbounded-consumption',
       'code-execution',
+      'many-shot-jailbreak',
     ]);
   });
 });
