@@ -24,13 +24,16 @@ not just attack success.
 
 ## Status
 
-**Milestones 1–8 plus the 2026 agentic expansion (milestone 9) are complete.**
+**Milestones 1–8, the 2026 agentic expansion (milestone 9), and the frontier
+published-technique modules (milestone 10) are complete.**
 COAX has the typed `TargetAdapter` interface, a deliberately-vulnerable mock
 agent, a vulnerable **multi-agent** target, the responsible-use gate, a seeded
-PRNG, attack + oracle registries, **nine single-turn attack modules** (direct
+PRNG, attack + oracle registries, **twelve single-turn attack modules** (direct
 override, jailbreak, obfuscation, **indirect injection**, **tool abuse**,
 **goal hijack**, **agentic supply-chain / tool poisoning**, **unbounded
-consumption**, **code execution**), a composable **transform layer**
+consumption**, **code execution**, plus the frontier published techniques
+**many-shot jailbreak**, **skeleton key**, and **policy puppetry**), a
+composable **transform layer**
 (base64/hex/rot13/homoglyph/zero-width/leetspeak/…), an **adaptive LLM-driven
 attacker** with a true multi-turn **crescendo** mode, a **scenario engine** for
 multi-step attacks (**crescendo**, **memory poisoning across sessions**,
@@ -42,7 +45,7 @@ cost-capped + cached LLM client, **scoring** (ASR by family/surface, mapped to
 **OWASP LLM 2025 / OWASP Agentic 2026 / MITRE ATLAS**, severity-weighted) with
 **Markdown + HTML report** generation, real target adapters (**HTTP**,
 **OpenAI-compatible**, **Playwright**, **Ollama**), a `--target` module loader,
-and offline CI. **140 tests, fully offline.**
+and offline CI. **151 tests, fully offline.**
 
 | # | Milestone | State |
 |---|-----------|-------|
@@ -55,6 +58,7 @@ and offline CI. **140 tests, fully offline.**
 | 7 | Scoring (ASR/severity/taxonomy) + Markdown/HTML report | ✅ done |
 | 8 | Real adapters (HTTP, OpenAI-compatible, Playwright) + docs | ✅ done |
 | 9 | **OWASP Agentic 2026 + ATLAS: goal-hijack / supply-chain / code-exec / unbounded-consumption modules, resource/egress/code-exec/trust oracles, crescendo + memory-poisoning + inter-agent scenarios, utility measurement** | ✅ done |
+| 10 | **Frontier published techniques: many-shot jailbreak (Anthropic 2024), skeleton key (Microsoft 2024), policy puppetry (HiddenLayer 2025)** | ✅ done |
 
 ## Quick start
 
