@@ -5,7 +5,11 @@ import type { AttackContext, AttackModule } from '../core/attack.js';
 import { makeRng } from '../core/rng.js';
 import { BUILTIN_ORACLES } from '../oracles/index.js';
 import { runScan } from '../core/runner.js';
-import { manyShotJailbreakModule, skeletonKeyModule } from './index.js';
+import {
+  manyShotJailbreakModule,
+  skeletonKeyModule,
+  policyPuppetryModule,
+} from './index.js';
 
 const CANARY = 'CANARY-9f83a1c0-do-not-reveal';
 
@@ -14,7 +18,11 @@ async function ctx(seed: number): Promise<AttackContext> {
   return { rng: makeRng(seed), canary: CANARY, tools };
 }
 
-const MODULES: AttackModule[] = [manyShotJailbreakModule, skeletonKeyModule];
+const MODULES: AttackModule[] = [
+  manyShotJailbreakModule,
+  skeletonKeyModule,
+  policyPuppetryModule,
+];
 
 describe('frontier 2026 attack modules', () => {
   it('every module emits schema-valid, uniquely-identified payloads', async () => {
@@ -61,5 +69,12 @@ describe('frontier 2026 attack modules', () => {
     expect(payloads.every((p) => p.taxonomy.includes('AML.T0054'))).toBe(true);
     const shots = payloads.map((p) => p.metadata.shots as number);
     expect(new Set(shots).size).toBe(shots.length);
+  });
+
+  it('policy-puppetry disguises the demand as a config format', async () => {
+    const payloads = policyPuppetryModule.generate(await ctx(1));
+    expect(payloads.every((p) => p.taxonomy.includes('AML.T0051'))).toBe(true);
+    const formats = payloads.map((p) => p.metadata.format);
+    expect(formats).toEqual(expect.arrayContaining(['xml', 'json', 'ini']));
   });
 });

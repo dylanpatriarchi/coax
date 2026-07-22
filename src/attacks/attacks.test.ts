@@ -23,6 +23,7 @@ describe('attack registry', () => {
       'code-execution',
       'many-shot-jailbreak',
       'skeleton-key',
+      'policy-puppetry',
     ]);
   });
 });
