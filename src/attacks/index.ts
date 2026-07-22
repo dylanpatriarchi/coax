@@ -15,6 +15,7 @@ import { supplyChainModule } from './supply-chain.js';
 import { unboundedConsumptionModule } from './unbounded-consumption.js';
 import { codeExecutionModule } from './code-execution.js';
 import { manyShotJailbreakModule } from './many-shot-jailbreak.js';
+import { skeletonKeyModule } from './skeleton-key.js';
 
 export const BUILTIN_ATTACKS: readonly AttackModule[] = [
   directOverrideModule,
@@ -29,6 +30,7 @@ export const BUILTIN_ATTACKS: readonly AttackModule[] = [
   codeExecutionModule,
   // Frontier (2024-2025 published) jailbreak/override techniques.
   manyShotJailbreakModule,
+  skeletonKeyModule,
 ];
 
 export function createAttackRegistry(): Registry<AttackModule> {
@@ -57,4 +59,5 @@ export {
   unboundedConsumptionModule,
   codeExecutionModule,
   manyShotJailbreakModule,
+  skeletonKeyModule,
 };
