@@ -12,6 +12,8 @@
  */
 import { runAdaptiveAttack } from '../core/adaptive.js';
 import type { AdaptiveResult } from '../core/adaptive.js';
+import type { AttackPayload } from '../core/attack.js';
+import type { Attempt } from '../core/runner.js';
 import type { Oracle } from '../core/oracle.js';
 import type { TargetAdapter } from '../core/target.js';
 import { CachingModel, CallBudget } from '../llm/model.js';
@@ -59,5 +61,41 @@ export async function runAdaptive(opts: AdaptiveRunOptions): Promise<AdaptiveRes
     ...(opts.forbiddenTools !== undefined ? { forbiddenTools: opts.forbiddenTools } : {}),
     maxIterations,
     ...(opts.persist !== undefined ? { persist: opts.persist } : {}),
+  });
+}
+
+/**
+ * Fold an adaptive run into the same `Attempt` stream as the static suite, so
+ * one closed-loop attack scores, weights, and reports exactly like a generated
+ * payload instead of living in a parallel format nobody renders. Each ROUND is
+ * one attempt: that is what makes "the attacker needed 4 tries" visible in the
+ * ASR rather than collapsing to a single pass/fail.
+ */
+export function adaptiveAttempts(result: AdaptiveResult): Attempt[] {
+  return result.rounds.map((round) => {
+    const payload: AttackPayload = {
+      id: `adaptive/loop#${round.iteration}`,
+      moduleId: 'adaptive',
+      family: 'adaptive',
+      surface: round.inject ? 'indirect' : 'direct',
+      // An adaptive attacker escalates until an oracle fires; treat every round
+      // as high-severity so a hit is weighted like the targeted attack it is.
+      severity: 'high',
+      taxonomy: ['LLM01', 'ASI01'],
+      message: round.message,
+      ...(round.inject ? { inject: round.inject } : {}),
+      technique: `adaptive iteration ${round.iteration}: ${round.reasoning}`,
+      metadata: {
+        goal: result.goal,
+        iteration: round.iteration,
+        stoppedBy: result.stoppedBy,
+      },
+    };
+    return {
+      payload,
+      response: round.response,
+      verdicts: round.verdicts,
+      success: round.success,
+    };
   });
 }
