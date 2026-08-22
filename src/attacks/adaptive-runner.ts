@@ -12,6 +12,9 @@
  */
 import { runAdaptiveAttack } from '../core/adaptive.js';
 import type { AdaptiveResult } from '../core/adaptive.js';
+import type { AttackPayload } from '../core/attack.js';
+import { isBlockedResponse } from '../core/defense.js';
+import type { Attempt } from '../core/runner.js';
 import type { Oracle } from '../core/oracle.js';
 import type { TargetAdapter } from '../core/target.js';
 import { CachingModel, CallBudget } from '../llm/model.js';
@@ -59,5 +62,50 @@ export async function runAdaptive(opts: AdaptiveRunOptions): Promise<AdaptiveRes
     ...(opts.forbiddenTools !== undefined ? { forbiddenTools: opts.forbiddenTools } : {}),
     maxIterations,
     ...(opts.persist !== undefined ? { persist: opts.persist } : {}),
+  });
+}
+
+/**
+ * Fold an adaptive run into the same `Attempt` stream as the static suite, so
+ * one closed-loop attack scores, weights, and reports exactly like a generated
+ * payload instead of living in a parallel format nobody renders. Each ROUND is
+ * one attempt: that is what makes "the attacker needed 4 tries" visible in the
+ * ASR rather than collapsing to a single pass/fail.
+ */
+export function adaptiveAttempts(result: AdaptiveResult): Attempt[] {
+  return result.rounds.map((round) => {
+    const payload: AttackPayload = {
+      id: `adaptive/loop#${round.iteration}`,
+      moduleId: 'adaptive',
+      family: 'adaptive',
+      surface: round.inject ? 'indirect' : 'direct',
+      // An adaptive attacker escalates until an oracle fires; treat every round
+      // as high-severity so a hit is weighted like the targeted attack it is.
+      severity: 'high',
+      taxonomy: ['LLM01', 'ASI01'],
+      message: round.message,
+      ...(round.inject ? { inject: round.inject } : {}),
+      technique: `adaptive iteration ${round.iteration}: ${round.reasoning}`,
+      metadata: {
+        goal: result.goal,
+        iteration: round.iteration,
+        stoppedBy: result.stoppedBy,
+      },
+    };
+    // One round is one send, so it is a single trial by construction, and the
+    // attacker declares no expected oracles — a hit on ANY oracle is what the
+    // loop was steering for. A round a defense refused still says so, so an
+    // adaptive attempt that was blocked never reads as an ordinary miss.
+    return {
+      payload,
+      response: round.response,
+      verdicts: round.verdicts,
+      success: round.success,
+      collateral: false,
+      trials: 1,
+      hits: round.success ? 1 : 0,
+      collateralHits: 0,
+      blocked: isBlockedResponse(round.response) ? 1 : 0,
+    };
   });
 }
