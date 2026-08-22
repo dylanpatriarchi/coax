@@ -5,7 +5,9 @@ import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'report/**'],
+    // '.claude/**' holds git worktrees: linting them pulls other checkouts'
+    // source into this one's report, with errors nobody here can fix.
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'report/**', '.claude/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
