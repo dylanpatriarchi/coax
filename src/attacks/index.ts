@@ -12,6 +12,7 @@ import { indirectInjectionModule } from './indirect-injection.js';
 import { toolAbuseModule } from './tool-abuse.js';
 import { goalHijackModule } from './goal-hijack.js';
 import { supplyChainModule } from './supply-chain.js';
+import { mcpToolPoisoningModule } from './mcp-tool-poisoning.js';
 import { unboundedConsumptionModule } from './unbounded-consumption.js';
 import { codeExecutionModule } from './code-execution.js';
 import { ragPoisoningModule } from './rag-poisoning.js';
@@ -30,6 +31,7 @@ export const BUILTIN_ATTACKS: readonly AttackModule[] = [
   // Agentic (OWASP ASI 2026) single-turn modules.
   goalHijackModule,
   supplyChainModule,
+  mcpToolPoisoningModule,
   unboundedConsumptionModule,
   codeExecutionModule,
   trustExploitationModule,
@@ -65,6 +67,7 @@ export {
   toolAbuseModule,
   goalHijackModule,
   supplyChainModule,
+  mcpToolPoisoningModule,
   unboundedConsumptionModule,
   codeExecutionModule,
   trustExploitationModule,

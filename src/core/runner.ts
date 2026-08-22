@@ -12,7 +12,7 @@ import { supportsInjection } from './target.js';
 import type { AttackModule, AttackPayload } from './attack.js';
 import type { Oracle, OracleVerdict } from './oracle.js';
 import { makeRng } from './rng.js';
-import type { AgentResponse, TargetAdapter } from './target.js';
+import type { AgentResponse, TargetAdapter, ToolSpec } from './target.js';
 
 export interface Attempt {
   payload: AttackPayload;
@@ -41,6 +41,7 @@ async function runOne(
   opts: ScanOptions,
   payload: AttackPayload,
   forbiddenTools: string[],
+  tools: ToolSpec[],
 ): Promise<Attempt> {
   const { target, oracles, canary } = opts;
 
@@ -59,6 +60,7 @@ async function runOne(
         response,
         ...(canary !== undefined ? { canary } : {}),
         forbiddenTools,
+        tools,
       }),
     );
   }
@@ -82,7 +84,7 @@ export async function runScan(opts: ScanOptions): Promise<ScanResult> {
   // limits. (Bounded concurrency is a later, opt-in optimisation.)
   const attempts: Attempt[] = [];
   for (const payload of payloads) {
-    attempts.push(await runOne(opts, payload, forbidden));
+    attempts.push(await runOne(opts, payload, forbidden, tools));
   }
 
   return { seed: opts.seed, target: opts.target.name, attempts };

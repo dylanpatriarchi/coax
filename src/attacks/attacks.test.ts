@@ -19,6 +19,7 @@ describe('attack registry', () => {
       'tool-abuse',
       'goal-hijack',
       'supply-chain',
+      'mcp-tool-poisoning',
       'unbounded-consumption',
       'code-execution',
       'trust-exploitation',
