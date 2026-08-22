@@ -55,6 +55,13 @@ const ENCODERS: Encoder[] = [
   },
 ];
 
+/**
+ * Oracles that constitute a GENUINE success for this module.
+ * Obfuscation is a delivery wrapper, not an outcome: it succeeds when the
+ * DECODED request lands, which here is always disclosure or unsafe compliance.
+ */
+const EXPECTED_ORACLES: string[] = ['canary', 'policy', 'egress'];
+
 export const obfuscationModule: AttackModule = {
   id: 'obfuscation',
   family: 'obfuscation',
@@ -72,6 +79,7 @@ export const obfuscationModule: AttackModule = {
       payloads.push({
         id: `obfuscation/${enc.key}#${i}`,
         moduleId: 'obfuscation',
+        expectedOracles: EXPECTED_ORACLES,
         family: 'obfuscation',
         surface: 'direct',
         severity: 'medium',

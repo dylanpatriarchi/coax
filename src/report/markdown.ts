@@ -4,21 +4,75 @@
  * a footer, never in the scored tables.
  */
 import type { ScanReport, Finding, CategoryScore, TaxonomyScore } from './scoring.js';
+import type { DefenseComparison } from './defense-comparison.js';
+import { formatInterval } from './statistics.js';
 
 const pct = (n: number): string => `${(n * 100).toFixed(0)}%`;
+const ci = (r: { lo: number; hi: number }): string => formatInterval(r);
 
 function categoryTable(title: string, rows: CategoryScore[]): string {
-  const head = `| ${title} | ASR | Hits | Total |\n| --- | ---: | ---: | ---: |`;
+  const head = `| ${title} | ASR | 95% CI | Hits | Trials |\n| --- | ---: | ---: | ---: | ---: |`;
   const body = rows
-    .map((r) => `| ${r.key} | ${pct(r.asr)} | ${r.hits} | ${r.total} |`)
+    .map((r) => `| ${r.key} | ${pct(r.asr)} | ${ci(r)} | ${r.hits} | ${r.total} |`)
     .join('\n');
   return `${head}\n${body}`;
 }
 
 function taxonomyTable(rows: TaxonomyScore[], title = 'Category'): string {
-  const head = `| ${title} | ASR | Hits | Total |\n| --- | ---: | ---: | ---: |`;
-  const body = rows.map((r) => `| ${r.label} | ${pct(r.asr)} | ${r.hits} | ${r.total} |`).join('\n');
+  const head = `| ${title} | ASR | 95% CI | Hits | Trials |\n| --- | ---: | ---: | ---: | ---: |`;
+  const body = rows
+    .map((r) => `| ${r.label} | ${pct(r.asr)} | ${ci(r)} | ${r.hits} | ${r.total} |`)
+    .join('\n');
   return `${head}\n${body}`;
+}
+
+/**
+ * Baseline vs. defended, per family. `Residual` is deliberately the last and
+ * widest column: the reduction is the sales number, the residual is the finding.
+ */
+function defenseSection(d: DefenseComparison): string[] {
+  const s: string[] = [];
+  s.push('## Defense effectiveness');
+  s.push('');
+  s.push(
+    `- **Overall ASR:** ${pct(d.overall.baseline.rate)} ${ci(d.overall.baseline)} baseline → ` +
+      `${pct(d.overall.defended.rate)} ${ci(d.overall.defended)} defended ` +
+      `(${pct(d.overall.reduction)} relative reduction, **${pct(d.overall.residual)} residual**)`,
+  );
+  s.push(
+    `- **Defense activity:** ${d.activity.blockedAttempts}/${d.activity.totalAttempts} attempts ` +
+      `refused outright, ${d.activity.quarantinedIngests} ingested spans quarantined, ` +
+      `${d.activity.rewrittenResponses} responses rewritten on the way out`,
+  );
+  if (d.utility) {
+    s.push(
+      `- **Benign utility:** ${pct(d.utility.baseline.benign.rate)} baseline → ` +
+        `${pct(d.utility.defended.benign.rate)} defended ` +
+        `(a control that blocks everything is visible here, not just in the ASR column)`,
+    );
+    s.push(
+      `- **Utility under attack:** ${pct(d.utility.baseline.underAttack.rate)} baseline → ` +
+        `${pct(d.utility.defended.underAttack.rate)} defended`,
+    );
+  }
+  s.push('');
+  s.push('| Family | Baseline ASR | Defended ASR | Reduction | Residual |');
+  s.push('| --- | ---: | ---: | ---: | ---: |');
+  for (const f of d.byFamily) {
+    s.push(
+      `| ${f.key} | ${pct(f.baseline.rate)} ${ci(f.baseline)} | ${pct(f.defended.rate)} ` +
+        `${ci(f.defended)} | ${pct(f.reduction)} | ${pct(f.residual)} |`,
+    );
+  }
+  s.push('');
+  s.push('**Controls measured** — each with what it does NOT stop:');
+  s.push('');
+  for (const c of d.defenses) {
+    s.push(`- \`${c.id}\` — ${c.description}`);
+    s.push(`  - _Does not stop:_ ${c.limitations}`);
+  }
+  s.push('');
+  return s;
 }
 
 function fence(content: string): string {
@@ -38,6 +92,12 @@ function findingSection(f: Finding, index: number): string {
   parts.push(
     `- **Detected by:** ${f.firedOracles.map((o) => `\`${o.oracleId}\` (${o.evidence})`).join('; ')}`,
   );
+  if (f.expectedOracles) {
+    parts.push(`- **On-target oracles:** ${f.expectedOracles.map((o) => `\`${o}\``).join(', ')}`);
+  }
+  if (f.trials > 1) {
+    parts.push(`- **Landed:** ${f.hits}/${f.trials} trials`);
+  }
   parts.push('');
   parts.push('**Reproducible transcript**');
   parts.push('');
@@ -78,9 +138,20 @@ export function renderMarkdown(report: ScanReport, opts: RenderOptions = {}): st
   s.push('## Summary');
   s.push('');
   s.push(
-    `- **Overall ASR:** ${pct(report.overall.asr)} (${report.overall.hits}/${report.overall.total})`,
+    `- **Overall ASR:** ${pct(report.overall.asr)} ${ci(report.overall)} ` +
+      `(${report.overall.hits}/${report.overall.total} trials, 95% Wilson interval)`,
   );
   s.push(`- **Severity-weighted ASR:** ${pct(report.overall.weightedAsr)}`);
+  if (report.meta.trials > 1) {
+    s.push(`- **Trials per payload:** ${report.meta.trials}`);
+  }
+  if (report.overall.collateralHits > 0) {
+    s.push(
+      `- **Collateral oracle hits:** ${report.overall.collateralHits} ` +
+        `(${pct(report.overall.collateralRate)}) — trials where an oracle fired that the payload ` +
+        'never claimed. NOT counted as success for that attack family.',
+    );
+  }
   if (report.falsePositive) {
     s.push(
       `- **Oracle false-positive rate:** ${pct(report.falsePositive.overallRate)} ` +
@@ -124,6 +195,10 @@ export function renderMarkdown(report: ScanReport, opts: RenderOptions = {}): st
     s.push('');
     s.push(taxonomyTable(otherTax, 'Tag'));
     s.push('');
+  }
+
+  if (report.defense) {
+    s.push(...defenseSection(report.defense));
   }
 
   if (report.utility) {

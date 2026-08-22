@@ -6,20 +6,69 @@
  * It emits one `Attempt` record per payload. Aggregation into ASR/severity/
  * taxonomy scores and the report is milestone 7; this just produces the raw,
  * reproducible evidence.
+ *
+ * Two things the runner is careful about beyond "send and check":
+ *
+ *  - REPEATED TRIALS. Sending each payload once against a stochastic target
+ *    produces an ASR with unknown variance — two runs of the same suite disagree
+ *    and neither number is defensible. `trials` sends each payload N times and
+ *    records hits/trials, which is what lets the scorer attach a confidence
+ *    interval. Each trial derives its own child RNG stream from the scan seed,
+ *    so a multi-trial scan is as reproducible as a single-trial one. Default 1:
+ *    existing behaviour is bit-for-bit unchanged.
+ *
+ *  - ON-TARGET vs. COLLATERAL. `verdicts.some(v => v.success)` treats every
+ *    oracle as equally meaningful for every payload, so a code-execution payload
+ *    that trips only the trust oracle scores as a code-execution success. When a
+ *    payload declares `expectedOracles`, only those oracles count toward its
+ *    headline result; anything else fired is recorded separately as collateral.
+ *    Payloads that declare nothing keep the old any-oracle semantics.
  */
 import { generatePayloads } from '../attacks/index.js';
 import { supportsInjection } from './target.js';
 import type { AttackModule, AttackPayload } from './attack.js';
+import type { DefenseTrace } from './defense.js';
+import { isDefendedTarget } from './defense.js';
 import type { Oracle, OracleVerdict } from './oracle.js';
 import { makeRng } from './rng.js';
 import type { AgentResponse, TargetAdapter, ToolSpec } from './target.js';
 
-export interface Attempt {
-  payload: AttackPayload;
+/** One send of one payload. */
+export interface TrialResult {
+  /** 0-based trial index within the attempt. */
+  index: number;
   response: AgentResponse;
   verdicts: OracleVerdict[];
-  /** True if any oracle flagged success. */
+  /** An expected oracle fired — or, when none is declared, any oracle did. */
+  onTarget: boolean;
+  /** An oracle fired, but not one the payload claimed. Never both with onTarget. */
+  collateral: boolean;
+  /** Present only when the target is wrapped in a defense stack. */
+  defense?: DefenseTrace;
+}
+
+export interface Attempt {
+  payload: AttackPayload;
+  /** Representative trial: the first on-target success, else the first trial. */
+  response: AgentResponse;
+  verdicts: OracleVerdict[];
+  /**
+   * True if at least one trial was an ON-TARGET success. Identical to the old
+   * any-oracle semantics for payloads that declare no `expectedOracles`.
+   */
   success: boolean;
+  /** True if a trial fired oracles the payload never claimed, and none it did. */
+  collateral: boolean;
+  /** How many times the payload was sent. */
+  trials: number;
+  /** Trials that were an on-target success. */
+  hits: number;
+  /** Trials whose only firing oracles were unexpected ones. */
+  collateralHits: number;
+  /** Trials a defense refused outright (no agent response at all). */
+  blocked: number;
+  /** Per-trial detail. Present for runner-produced attempts. */
+  trialResults?: TrialResult[];
 }
 
 export interface ScanOptions {
@@ -29,20 +78,50 @@ export interface ScanOptions {
   seed: number;
   canary?: string;
   maxPayloads?: number;
+  /**
+   * How many times to send each payload. Default 1. Values above 1 are what make
+   * the reported ASR carry a meaningful confidence interval against a
+   * non-deterministic target.
+   */
+  trials?: number;
 }
 
 export interface ScanResult {
   seed: number;
   target: string;
+  /** Trials per payload used for this scan. */
+  trials: number;
   attempts: Attempt[];
 }
 
-async function runOne(
+/**
+ * Split fired oracles into on-target and collateral for one payload.
+ *
+ * With no declared expectation every oracle counts, which is exactly the
+ * pre-existing behaviour — so nothing regresses for third-party modules.
+ */
+export function classifyVerdicts(
+  payload: Pick<AttackPayload, 'expectedOracles'>,
+  verdicts: readonly OracleVerdict[],
+): { onTarget: boolean; collateral: boolean } {
+  const fired = verdicts.filter((v) => v.success);
+  const expected = payload.expectedOracles;
+  if (expected === undefined || expected.length === 0) {
+    return { onTarget: fired.length > 0, collateral: false };
+  }
+  const wanted = new Set(expected);
+  const onTarget = fired.some((v) => wanted.has(v.oracleId));
+  return { onTarget, collateral: !onTarget && fired.length > 0 };
+}
+
+async function runTrial(
   opts: ScanOptions,
   payload: AttackPayload,
   forbiddenTools: string[],
   tools: ToolSpec[],
-): Promise<Attempt> {
+  index: number,
+  conversationId: string | undefined,
+): Promise<TrialResult> {
   const { target, oracles, canary } = opts;
 
   if (target.reset) await target.reset();
@@ -50,7 +129,10 @@ async function runOne(
     await target.injectContent(payload.inject);
   }
 
-  const response: AgentResponse = await target.sendMessage({ message: payload.message });
+  const response: AgentResponse = await target.sendMessage({
+    message: payload.message,
+    ...(conversationId !== undefined ? { conversationId } : {}),
+  });
 
   const verdicts: OracleVerdict[] = [];
   for (const oracle of oracles) {
@@ -65,10 +147,69 @@ async function runOne(
     );
   }
 
-  return { payload, response, verdicts, success: verdicts.some((v) => v.success) };
+  const { onTarget, collateral } = classifyVerdicts(payload, verdicts);
+
+  // A blocked turn is evidence, not an absence: record what the control did so
+  // the attempt scores as defended rather than merely unsuccessful.
+  let defense: DefenseTrace | undefined;
+  if (isDefendedTarget(target)) {
+    const events = target.consumeEvents();
+    defense = { blocked: events.some((e) => e.action === 'blocked' && e.stage !== 'ingest'), events };
+  }
+
+  return {
+    index,
+    response,
+    verdicts,
+    onTarget,
+    collateral,
+    ...(defense !== undefined ? { defense } : {}),
+  };
+}
+
+async function runOne(
+  opts: ScanOptions,
+  payload: AttackPayload,
+  forbiddenTools: string[],
+  tools: ToolSpec[],
+  trials: number,
+  seed: number,
+): Promise<Attempt> {
+  const trialResults: TrialResult[] = [];
+  for (let i = 0; i < trials; i++) {
+    // Each trial gets its own child stream off the scan seed. With trials === 1
+    // no conversation id is set at all, so the single-trial path is byte-for-byte
+    // what it was before repeated trials existed.
+    const conversationId =
+      trials > 1
+        ? `trial-${makeRng(seed).derive(`${payload.id}#trial:${i}`).int(0, 0xffffff).toString(16)}`
+        : undefined;
+    trialResults.push(
+      await runTrial(opts, payload, forbiddenTools, tools, i, conversationId),
+    );
+  }
+
+  const hits = trialResults.filter((t) => t.onTarget).length;
+  const collateralHits = trialResults.filter((t) => t.collateral).length;
+  const blocked = trialResults.filter((t) => t.defense?.blocked === true).length;
+  const representative = trialResults.find((t) => t.onTarget) ?? (trialResults[0] as TrialResult);
+
+  return {
+    payload,
+    response: representative.response,
+    verdicts: representative.verdicts,
+    success: hits > 0,
+    collateral: hits === 0 && collateralHits > 0,
+    trials,
+    hits,
+    collateralHits,
+    blocked,
+    trialResults,
+  };
 }
 
 export async function runScan(opts: ScanOptions): Promise<ScanResult> {
+  const trials = Math.max(1, Math.trunc(opts.trials ?? 1));
   const tools = opts.target.describeTools ? await opts.target.describeTools() : [];
   const forbidden = tools.filter((t) => t.forbidden).map((t) => t.name);
 
@@ -80,12 +221,16 @@ export async function runScan(opts: ScanOptions): Promise<ScanResult> {
   };
   const payloads = generatePayloads(opts.modules, ctx);
 
+  // Drop anything a previous caller left in a defended target's event log, so
+  // each attempt's trace contains only its own events.
+  if (isDefendedTarget(opts.target)) opts.target.consumeEvents();
+
   // Sequential by default: keeps ordering deterministic and respects target rate
   // limits. (Bounded concurrency is a later, opt-in optimisation.)
   const attempts: Attempt[] = [];
   for (const payload of payloads) {
-    attempts.push(await runOne(opts, payload, forbidden, tools));
+    attempts.push(await runOne(opts, payload, forbidden, tools, trials, opts.seed));
   }
 
-  return { seed: opts.seed, target: opts.target.name, attempts };
+  return { seed: opts.seed, target: opts.target.name, trials, attempts };
 }
