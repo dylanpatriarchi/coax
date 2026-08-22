@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/dylanpatriarchi/coax/security/advisories/new
+    about: Vulnerabilities in COAX itself go through a private advisory, never a public issue. Read SECURITY.md for what is in scope — the mock agent is deliberately vulnerable.
+  - name: Question or usage help
+    url: https://github.com/dylanpatriarchi/coax/discussions
+    about: How to point COAX at your agent, interpret ASR, or write a target module.
