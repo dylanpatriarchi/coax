@@ -78,17 +78,72 @@ describe('coax (dispatch)', () => {
   });
 });
 
+describe('terminal presentation', () => {
+  it('shows the banner on the bare invocation and on scan, never in --json', async () => {
+    const bare = await cli();
+    expect(bare.out).toContain('COAX');
+
+    const scan = await cli('scan', ...FAST, '--only', 'obfuscation');
+    expect(scan.out).toContain('COAX');
+
+    // stdout must stay a machine contract: no banner on either stream's JSON.
+    const json = await cli('scan', ...FAST, '--only', 'obfuscation', '--json');
+    expect(json.out.startsWith('{')).toBe(true);
+    expect(json.out).not.toContain('COAX');
+    expect(json.err).not.toContain('COAX');
+    expect(() => JSON.parse(json.out)).not.toThrow();
+  });
+
+  it('--quiet suppresses the banner but keeps the results', async () => {
+    const { code, out } = await cli('scan', ...FAST, '--only', 'obfuscation', '--quiet');
+    expect(code).toBe(EXIT_OK);
+    expect(out).not.toContain('COAX');
+    expect(out).toContain('obfuscation');
+    expect(out).toMatch(/PASSED|WARNING/);
+  });
+
+  it('emits no ANSI escapes when colour is off (NO_COLOR is set for the suite)', async () => {
+    const runs = [
+      await cli('scan', ...FAST, '--only', 'tool-abuse', '--fail-on-severity', 'high'),
+      await cli('list'),
+      await cli('demo'),
+      await cli(),
+    ];
+    for (const run of runs) {
+      expect(run.out).not.toContain('\u001b[');
+      expect(run.err).not.toContain('\u001b[');
+    }
+  });
+
+  it('never writes a progress line when the stream is not an interactive TTY', async () => {
+    const io = captureIo();
+    const code = await run(['scan', ...FAST, '--only', 'tool-abuse'], io);
+    expect(code).toBe(EXIT_OK);
+    // Captured IO is never a TTY, which is exactly the piped/redirected case.
+    expect(io.rawWrites).toEqual([]);
+    expect(io.stdout.join('\n')).not.toContain('\r');
+  });
+
+  it('draws box-ruled tables that stay aligned for the longest family name', async () => {
+    const { out } = await cli('scan', '--no-utility', '--no-fp', '--no-scenarios');
+    expect(out).toContain('┌');
+    expect(out).toContain('│ unbounded-consumption');
+    const rows = out.split('\n').filter((l) => l.trimStart().startsWith('│'));
+    expect(new Set(rows.slice(0, 3).map((l) => l.length)).size).toBe(1);
+  });
+});
+
 describe('coax list', () => {
   it('lists every registry with ids, families and taxonomy tags', async () => {
     const { code, out } = await cli('list');
     expect(code).toBe(EXIT_OK);
-    expect(out).toContain('attack modules (16):');
+    expect(out).toContain('attack modules (16)');
     expect(out).toContain('mcp-tool-poisoning');
     expect(out).toContain('[ASI04 LLM01 AML.T0053]');
     expect(out).toContain('oracles (id / confidence)');
     expect(out).toContain('multi-step scenarios');
     expect(out).toContain('target adapters');
-    expect(out).toContain('defenses (--defense <ids|all>) (4):');
+    expect(out).toContain('defenses (--defense <ids|all>) (4)');
     expect(out).toContain('spotlighting');
   });
 
@@ -113,7 +168,7 @@ describe('coax scan --dry-run', () => {
     expect(code).toBe(EXIT_OK);
     expect(out).toContain('the target is not contacted');
     expect(out).toContain('tool-abuse/send_email-direct#0');
-    expect(out).toContain('critical');
+    expect(out).toContain('CRITICAL');
   });
 
   it('honours --only, --surface and --max-payloads', async () => {
@@ -182,13 +237,13 @@ describe('coax scan --defense', () => {
       'high',
     );
     expect(defended.code).toBe(EXIT_OK);
-    expect(defended.out).toContain('defenses: spotlighting, input-screening');
-    expect(defended.out).toContain('family              baseline  defended  reduction  residual');
+    expect(defended.out).toContain('spotlighting');
+    expect(defended.out).toMatch(/baseline.*defended.*reduction.*residual/);
     expect(defended.out).toContain('stack activity:');
     // The cost of the control is printed next to its benefit, never alone.
-    expect(defended.out).toContain('utility             baseline  defended');
+    expect(defended.out).toMatch(/utility.*baseline.*defended/);
     // And the verdict says which column it read.
-    expect(defended.out).toContain('verdict: PASS (defended scan)');
+    expect(defended.out).toContain('✓ PASSED (defended scan)');
   });
 
   it('carries the comparison into report.json', async () => {
@@ -231,7 +286,7 @@ describe('coax scan --trials', () => {
   it('reports a confidence interval beside the point estimate', async () => {
     const { code, out } = await cli('scan', ...FAST, '--only', 'obfuscation', '--trials', '3');
     expect(code).toBe(EXIT_OK);
-    expect(out).toContain('trials: 3');
+    expect(out).toContain('trials 3');
     expect(out).toMatch(/ASR \(95% CI\)/);
     expect(out).toMatch(/\[\d+%, \d+%\]/);
   });
@@ -260,8 +315,9 @@ describe('coax scan --trials', () => {
 
   it('single-trial output is unchanged — no interval, no trials header', async () => {
     const { out } = await cli('scan', ...FAST, '--only', 'obfuscation');
-    expect(out).not.toContain('trials:');
+    expect(out).not.toMatch(/\btrials \d/);
     expect(out).not.toMatch(/\[\d+%, \d+%\]/);
+    expect(out).toContain('ASR');
   });
 });
 
@@ -276,7 +332,7 @@ describe('exit-code policy', () => {
       'high',
     );
     expect(code).toBe(EXIT_POLICY);
-    expect(out).toContain('verdict: FAIL');
+    expect(out).toContain('✗ FAILED');
     expect(out).toContain('[--fail-on-severity]');
   });
 
@@ -290,13 +346,13 @@ describe('exit-code policy', () => {
       'critical',
     );
     expect(code).toBe(EXIT_OK);
-    expect(out).toContain('verdict: PASS — no threshold breached');
+    expect(out).toContain('✓ PASSED — no threshold breached');
   });
 
   it('exits 0 with no thresholds configured, however bad the score', async () => {
     const { code, out } = await cli('scan', ...FAST, '--only', 'tool-abuse');
     expect(code).toBe(EXIT_OK);
-    expect(out).toContain('no thresholds configured');
+    expect(out).toContain('⚠ WARNING');
   });
 
   it('--max-asr and --max-weighted-asr name themselves in the verdict', async () => {
@@ -324,8 +380,8 @@ describe('machine-readable output', () => {
     const report = JSON.parse(out) as { meta: { seed: number }; overall: { asr: number } };
     expect(report.meta.seed).toBe(42);
     expect(typeof report.overall.asr).toBe('number');
-    expect(err).toContain('verdict:');
-    expect(out).not.toContain('verdict:');
+    expect(err).toMatch(/PASSED|FAILED|WARNING/);
+    expect(out).not.toMatch(/PASSED|FAILED|WARNING/);
   });
 
   it('--out writes report.md, report.html and a stable report.json', async () => {
@@ -402,7 +458,7 @@ describe('--baseline', () => {
       '--fail-on-regression',
     );
     expect(worse.code).toBe(EXIT_POLICY);
-    expect(worse.out).toContain('<-- regressed');
+    expect(worse.out).toContain('tool-abuse');
     expect(worse.out).toContain('[--fail-on-regression]');
   });
 

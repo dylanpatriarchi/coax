@@ -7,13 +7,17 @@ import { defineConfig } from 'vitest/config';
  * model. CI already sets COAX_OFFLINE=1; this makes it true everywhere, and the
  * few tests that exercise the configured path opt out with `vi.stubEnv`.
  *
+ * Colour is forced OFF for the same class of reason: whether the developer runs
+ * the suite in a TTY must not change what the CLI prints, so every assertion is
+ * written against plain text and a coloured local run cannot pass while CI fails.
+ *
  * `.claude/` is excluded because agent worktrees live under it: without this,
  * `npm test` from the repo root collects every sibling worktree's copy of the
  * suite and reports a test count that has nothing to do with this checkout.
  */
 export default defineConfig({
   test: {
-    env: { COAX_OFFLINE: '1' },
+    env: { COAX_OFFLINE: '1', NO_COLOR: '1' },
     exclude: ['**/node_modules/**', '**/dist/**', '**/.claude/**'],
   },
 });

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ScanReport } from '../report/scoring.js';
 import { diffReports, loadBaseline, renderDiff } from './baseline.js';
+import { captureIo } from './io.js';
 import type { BaselineReport } from './baseline.js';
 import { canonicalJson } from './json.js';
 
@@ -107,7 +108,7 @@ describe('diffReports', () => {
     expect(toolAbuse?.inCurrent).toBe(false);
     expect(toolAbuse?.fixedFindings).toEqual([]);
     expect(toolAbuse?.regressed).toBe(false);
-    expect(renderDiff(diff).join('\n')).toContain('(not run in this scan)');
+    expect(renderDiff(diff, captureIo()).join('\n')).toContain('(not run in this scan)');
   });
 
   it('flags a family that is new since the baseline', () => {
@@ -131,7 +132,7 @@ describe('diffReports', () => {
     const elsewhere = { ...base, meta: { ...base.meta, seed: 7 } };
     const diff = diffReports(elsewhere, report(base.byFamily, base.findings));
     expect(diff.comparable).toBe(false);
-    expect(renderDiff(diff).join('\n')).toContain('indicative only');
+    expect(renderDiff(diff, captureIo()).join('\n')).toContain('indicative only');
   });
 });
 

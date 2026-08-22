@@ -23,6 +23,8 @@ import type { Severity } from '../core/attack.js';
 import type { ScanReport } from '../report/scoring.js';
 import type { BaselineDiff } from './baseline.js';
 import { EXIT_OK, EXIT_POLICY } from './exit-codes.js';
+import { verdictMark } from './theme.js';
+import type { VerdictLevel } from './theme.js';
 
 /** Ascending order — `--fail-on-severity medium` also catches high and critical. */
 const SEVERITY_RANK: Record<Severity, number> = { low: 0, medium: 1, high: 2, critical: 3 };
@@ -37,6 +39,12 @@ export interface PolicyThresholds {
 export interface PolicyVerdict {
   ok: boolean;
   exitCode: typeof EXIT_OK | typeof EXIT_POLICY;
+  /**
+   * `fail` mirrors exit 3. `warn` is still exit 0 — it means the run found
+   * something but nothing was configured to gate on it, which is worth saying
+   * out loud rather than printing a green PASSED over a 100% ASR.
+   */
+  level: VerdictLevel;
   /** One reason per breached threshold. */
   breaches: string[];
   /** The single line the CLI prints. */
@@ -106,20 +114,38 @@ export function evaluatePolicy(
     return {
       ok: false,
       exitCode: EXIT_POLICY,
+      level: 'fail',
       breaches,
-      line: `verdict: FAIL${scope} — ${breaches.join('; ')}`,
+      line: `${verdictMark('fail')}${scope} — ${breaches.join('; ')}`,
     };
   }
 
   const summary =
     `ASR ${pct(report.overall.asr)} (${report.overall.hits}/${report.overall.total}), ` +
     `weighted ${pct(report.overall.weightedAsr)}, ${report.findings.length} finding(s)`;
+
+  if (hasThresholds(thresholds)) {
+    return {
+      ok: true,
+      exitCode: EXIT_OK,
+      level: 'pass',
+      breaches: [],
+      line: `${verdictMark('pass')}${scope} — no threshold breached: ${summary}`,
+    };
+  }
+
+  // Ungated runs: still exit 0 — COAX must not start failing pipelines that
+  // never asked it to — but a scan that found something and gates on nothing is
+  // a warning, not a clean bill of health.
+  const ungated = report.findings.length > 0 || diff?.regressed === true;
   return {
     ok: true,
     exitCode: EXIT_OK,
+    level: ungated ? 'warn' : 'pass',
     breaches: [],
-    line: hasThresholds(thresholds)
-      ? `verdict: PASS${scope} — no threshold breached: ${summary}`
-      : `verdict: PASS${scope} — no thresholds configured: ${summary}`,
+    line: ungated
+      ? `${verdictMark('warn')}${scope} — findings, but no threshold to gate them: ${summary}. ` +
+        'Add --fail-on-severity / --max-asr to make this a gate.'
+      : `${verdictMark('pass')}${scope} — nothing landed: ${summary}`,
   };
 }

@@ -44,9 +44,9 @@ describe('renderDefenseComparison', () => {
     const io = captureIo();
     renderDefenseComparison(overBlocking, io);
     const out = io.stdout.join('\n');
-    expect(out).toContain('defenses: refuse-everything');
-    expect(out).toContain('family              baseline  defended  reduction  residual');
-    expect(out).toMatch(/tool-abuse\s+100%\s+0%\s+100%\s+0%/);
+    expect(out).toContain('refuse-everything');
+    expect(out).toMatch(/family.*baseline.*defended.*reduction.*residual/);
+    expect(out).toMatch(/tool-abuse.*100%.*0%.*↓100%.*0%/);
   });
 
   it('punishes an over-blocking stack visibly: 0% residual next to 0% benign utility', () => {
@@ -54,8 +54,8 @@ describe('renderDefenseComparison', () => {
     renderDefenseComparison(overBlocking, io);
     const out = io.stdout.join('\n');
     // A perfect-looking control and its cost, in the same table.
-    expect(out).toContain('utility             baseline  defended');
-    expect(out).toMatch(/benign tasks\s+100%\s+0%/);
+    expect(out).toMatch(/utility.*baseline.*defended/);
+    expect(out).toMatch(/benign tasks.*100%.*0%/);
     expect(out).toContain('8/8 attempts refused');
   });
 
@@ -63,6 +63,6 @@ describe('renderDefenseComparison', () => {
     const io = captureIo();
     const { utility: _utility, ...withoutUtility } = overBlocking;
     renderDefenseComparison(withoutUtility, io);
-    expect(io.stdout.join('\n')).not.toContain('utility             baseline');
+    expect(io.stdout.join('\n')).not.toMatch(/utility.*baseline/);
   });
 });

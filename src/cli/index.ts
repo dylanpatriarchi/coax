@@ -17,24 +17,35 @@
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CliError, parseArgs, renderHelp } from './args.js';
+import { showBanner, VERSION } from './banner.js';
 import { runDemoCommand } from './commands/demo.js';
 import { runListCommand } from './commands/list.js';
 import { runScanCommand } from './commands/scan.js';
 import { EXIT_ERROR, EXIT_OK } from './exit-codes.js';
-import { consoleIo } from './io.js';
+import { createConsoleIo } from './io.js';
 import type { Io } from './io.js';
 
-const VERSION = '0.1.0';
+
 
 /** Dispatch one argv tail. Never exits the process; returns the exit code. */
-export async function run(argv: readonly string[], io: Io = consoleIo): Promise<number> {
+export async function run(argv: readonly string[], provided?: Io): Promise<number> {
+  let io = provided ?? createConsoleIo();
   try {
     const parsed = parseArgs(argv);
+    // The stream's styling depends on a flag the parser has only just read, so
+    // a caller-supplied IO (tests, embedders) is left exactly as it was and only
+    // the console one is rebuilt.
+    if (provided === undefined) {
+      io = createConsoleIo(
+        parsed.globals.color !== undefined ? { color: parsed.globals.color } : {},
+      );
+    }
     switch (parsed.command) {
       case 'version':
         io.out(VERSION);
         return EXIT_OK;
       case 'help':
+        showBanner(io, parsed.globals);
         io.out(renderHelp(parsed.topic));
         return EXIT_OK;
       case 'demo':
@@ -42,18 +53,18 @@ export async function run(argv: readonly string[], io: Io = consoleIo): Promise<
       case 'list':
         return runListCommand(parsed.args, parsed.kind, io);
       case 'scan':
-        return await runScanCommand(parsed.args, io);
+        return await runScanCommand(parsed.args, parsed.globals, io);
     }
   } catch (err) {
     // A CliError is an answer ("that flag does not exist"); anything else is a
     // failure, and keeps its stack so a real bug is still debuggable.
     if (err instanceof CliError) {
-      io.err(`coax: ${err.message}`);
+      io.err(`${io.style.red('coax:')} ${err.message}`);
       io.err('Run "coax --help" for usage.');
       return err.exitCode;
     }
     if (err instanceof Error) {
-      io.err(`coax: ${err.message}`);
+      io.err(`${io.style.red('coax:')} ${err.message}`);
       if (err.stack !== undefined && process.env.COAX_DEBUG) io.err(err.stack);
       return EXIT_ERROR;
     }

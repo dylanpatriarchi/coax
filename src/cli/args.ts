@@ -280,6 +280,35 @@ const FLAGS = {
   },
 } as const satisfies Record<string, FlagSpec>;
 
+/**
+ * Flags that belong to no single command, so they are accepted ANYWHERE —
+ * before the command, after it, or on a bare `coax`. They are stripped from
+ * argv before the command parse, which is why they live in their own table
+ * rather than being repeated in every command's list.
+ */
+const GLOBAL_FLAGS = {
+  color: {
+    flag: 'color',
+    kind: 'boolean',
+    commands: [...COMMANDS],
+    describe: 'colourize output (--no-color, or NO_COLOR in the environment, disables)',
+    schema: z.boolean().optional(),
+  },
+  quiet: {
+    flag: 'quiet',
+    kind: 'boolean',
+    commands: [...COMMANDS],
+    describe: 'suppress the banner and the progress line; print results only',
+    schema: z.boolean().default(false),
+  },
+} as const satisfies Record<string, FlagSpec>;
+
+export interface GlobalArgs {
+  /** Undefined means "decide from the terminal and the environment". */
+  color?: boolean;
+  quiet: boolean;
+}
+
 type FlagKey = keyof typeof FLAGS;
 
 /** Option keys a given command accepts. */
@@ -305,12 +334,13 @@ export const LIST_KINDS = [
 ] as const;
 export type ListKind = (typeof LIST_KINDS)[number];
 
-export type Parsed =
+export type Parsed = { globals: GlobalArgs } & (
   | { command: 'scan'; args: ScanArgs }
   | { command: 'list'; args: ListArgs; kind: ListKind }
   | { command: 'demo' }
   | { command: 'version' }
-  | { command: 'help'; topic?: CommandName };
+  | { command: 'help'; topic?: CommandName }
+);
 
 function specsFor(command: CommandName): [FlagKey, FlagSpec][] {
   return (Object.entries(FLAGS) as [FlagKey, FlagSpec][]).filter(([, s]) =>
@@ -465,6 +495,50 @@ function validate<C extends CommandName>(command: C, values: Record<string, unkn
   return result.data as ArgsFor<C>;
 }
 
+/**
+ * Pull the global flags out of argv wherever they appear, returning the rest.
+ * Done before the command parse so `coax --no-color scan` and `coax scan
+ * --no-color` mean the same thing — and so `coax --quiet` alone still works.
+ */
+function extractGlobals(argv: readonly string[]): { globals: GlobalArgs; rest: string[] } {
+  const rest: string[] = [];
+  const raw: Record<string, unknown> = {};
+  const specs = Object.entries(GLOBAL_FLAGS) as [keyof typeof GLOBAL_FLAGS, FlagSpec][];
+
+  for (const token of argv) {
+    if (!token.startsWith('--')) {
+      rest.push(token);
+      continue;
+    }
+    const body = token.slice(2);
+    const eq = body.indexOf('=');
+    const name = eq >= 0 ? body.slice(0, eq) : body;
+    const inline = eq >= 0 ? body.slice(eq + 1) : undefined;
+    const negated = name.startsWith('no-') ? name.slice(3) : undefined;
+
+    const found = specs.find(([, spec]) => spec.flag === name || spec.flag === negated);
+    if (!found) {
+      rest.push(token);
+      continue;
+    }
+    const [key, spec] = found;
+    if (negated !== undefined && spec.flag === negated) {
+      if (inline !== undefined) throw new CliError(`--${name} does not take a value.`);
+      raw[key] = false;
+      continue;
+    }
+    raw[key] = inline === undefined ? true : coerceBoolean(name, inline);
+  }
+
+  const shape: Record<string, z.ZodTypeAny> = {};
+  for (const [key, spec] of specs) shape[key] = spec.schema;
+  const parsed = z.object(shape).safeParse(raw);
+  if (!parsed.success) {
+    throw new CliError(`invalid flag value — ${parsed.error.issues[0]?.message ?? 'bad global flag'}`);
+  }
+  return { globals: parsed.data as unknown as GlobalArgs, rest };
+}
+
 function asCommand(token: string): CommandName | undefined {
   return (COMMANDS as readonly string[]).includes(token) ? (token as CommandName) : undefined;
 }
@@ -474,13 +548,14 @@ function asCommand(token: string): CommandName | undefined {
  * Throws `CliError` on anything malformed; never exits.
  */
 export function parseArgs(argv: readonly string[]): Parsed {
-  const [first, ...rest] = argv;
+  const { globals, rest: tokens } = extractGlobals(argv);
+  const [first, ...rest] = tokens;
 
-  if (first === undefined) return { command: 'help' };
-  if (first === '--version' || first === '-v') return { command: 'version' };
+  if (first === undefined) return { globals, command: 'help' };
+  if (first === '--version' || first === '-v') return { globals, command: 'version' };
   if (first === '--help' || first === '-h') {
     const topic = rest[0] !== undefined ? asCommand(rest[0]) : undefined;
-    return { command: 'help', ...(topic !== undefined ? { topic } : {}) };
+    return { globals, command: 'help', ...(topic !== undefined ? { topic } : {}) };
   }
 
   const command = asCommand(first);
@@ -489,18 +564,18 @@ export function parseArgs(argv: readonly string[]): Parsed {
   }
   if (command === 'help') {
     const topic = rest[0] !== undefined ? asCommand(rest[0]) : undefined;
-    return { command: 'help', ...(topic !== undefined ? { topic } : {}) };
+    return { globals, command: 'help', ...(topic !== undefined ? { topic } : {}) };
   }
-  if (command === 'version') return { command: 'version' };
+  if (command === 'version') return { globals, command: 'version' };
 
   const parsed = parseTokens(command, rest);
-  if (parsed.help) return { command: 'help', topic: command };
+  if (parsed.help) return { globals, command: 'help', topic: command };
 
   if (command === 'demo') {
     if (parsed.positionals.length > 0) {
       throw new CliError(`"coax demo" takes no arguments (got "${parsed.positionals[0]}").`);
     }
-    return { command: 'demo' };
+    return { globals, command: 'demo' };
   }
 
   if (command === 'list') {
@@ -511,7 +586,12 @@ export function parseArgs(argv: readonly string[]): Parsed {
     if (!(LIST_KINDS as readonly string[]).includes(raw)) {
       throw new CliError(`unknown kind "${raw}". Available: ${LIST_KINDS.join(', ')}`);
     }
-    return { command: 'list', args: validate('list', parsed.values), kind: raw as ListKind };
+    return {
+      globals,
+      command: 'list',
+      args: validate('list', parsed.values),
+      kind: raw as ListKind,
+    };
   }
 
   if (parsed.positionals.length > 0) {
@@ -526,7 +606,7 @@ export function parseArgs(argv: readonly string[]): Parsed {
   if (args.failOnRegression && args.baseline === undefined) {
     throw new CliError('--fail-on-regression requires --baseline <report.json>.');
   }
-  return { command: 'scan', args };
+  return { globals, command: 'scan', args };
 }
 
 const USAGE: { command: CommandName; syntax: string; describe: string }[] = [
@@ -556,8 +636,7 @@ function defaultNote(spec: FlagSpec): string {
   return ` [default: ${String(def.data)}]`;
 }
 
-function flagLines(command: CommandName): string[] {
-  const specs = specsFor(command);
+function linesFor(specs: readonly [string, FlagSpec][]): string[] {
   const left = specs.map(([, s]) => {
     const value = s.kind === 'boolean' ? '' : ` <${s.placeholder ?? 'VALUE'}>`;
     return `  --${s.flag}${value}`;
@@ -566,6 +645,14 @@ function flagLines(command: CommandName): string[] {
   return specs.map(
     ([, s], i) => `${(left[i] as string).padEnd(width + 2)}${s.describe}${defaultNote(s)}`,
   );
+}
+
+function flagLines(command: CommandName): string[] {
+  return linesFor(specsFor(command) as [string, FlagSpec][]);
+}
+
+function globalFlagLines(): string[] {
+  return linesFor(Object.entries(GLOBAL_FLAGS) as [string, FlagSpec][]);
 }
 
 /** The help text — generated from `FLAGS`, so it cannot drift from the parser. */
@@ -585,6 +672,10 @@ export function renderHelp(topic?: CommandName): string {
     out.push(`${command} flags:`);
     out.push(...lines);
   }
+
+  out.push('');
+  out.push('global flags:');
+  out.push(...globalFlagLines());
 
   out.push('');
   out.push('Exit codes:');

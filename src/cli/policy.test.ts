@@ -26,7 +26,8 @@ describe('evaluatePolicy', () => {
     const verdict = evaluatePolicy(report({ findings: [finding('x', 'critical')] }), {});
     expect(verdict.ok).toBe(true);
     expect(verdict.exitCode).toBe(EXIT_OK);
-    expect(verdict.line).toContain('no thresholds configured');
+    expect(verdict.line).toContain('no threshold to gate them');
+    expect(verdict.level).toBe('warn');
   });
 
   it('--fail-on-severity fires at or above the named severity', () => {
@@ -40,6 +41,7 @@ describe('evaluatePolicy', () => {
     });
     expect(pass.ok).toBe(true);
     expect(pass.exitCode).toBe(EXIT_OK);
+    expect(pass.line).toContain('✓ PASSED');
     expect(pass.line).toContain('no threshold breached');
   });
 
@@ -85,14 +87,14 @@ describe('evaluatePolicy', () => {
       maxWeightedAsr: 0.1,
     });
     expect(verdict.breaches).toHaveLength(3);
-    expect(verdict.line.startsWith('verdict: FAIL — ')).toBe(true);
+    expect(verdict.line.startsWith('✗ FAILED — ')).toBe(true);
   });
 
   it('names the defended scan when defenses were active, so the gate is unambiguous', () => {
     const pass = evaluatePolicy(report(), { maxAsr: 0.9 }, undefined, { defended: true });
-    expect(pass.line).toContain('verdict: PASS (defended scan)');
+    expect(pass.line).toContain('✓ PASSED (defended scan)');
     const fail = evaluatePolicy(report(), { maxAsr: 0.1 }, undefined, { defended: true });
-    expect(fail.line).toContain('verdict: FAIL (defended scan)');
+    expect(fail.line).toContain('✗ FAILED (defended scan)');
     // Undefended runs say nothing extra.
     expect(evaluatePolicy(report(), { maxAsr: 0.9 }).line).not.toContain('defended');
   });

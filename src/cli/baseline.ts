@@ -23,6 +23,8 @@
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import type { ScanReport } from '../report/scoring.js';
+import type { Io } from './io.js';
+import { renderTable } from './table.js';
 
 /** Rates equal within this are equal — no build fails on float noise. */
 const EPSILON = 1e-9;
@@ -169,30 +171,52 @@ export function diffReports(baseline: BaselineReport, current: ScanReport): Base
 const pct = (n: number): string => `${(n * 100).toFixed(0)}%`;
 const signed = (n: number): string => `${n > 0 ? '+' : ''}${(n * 100).toFixed(0)}pp`;
 
-/** Console rendering of a diff — one line per family that moved. */
-export function renderDiff(diff: BaselineDiff): string[] {
+/** Console rendering of a diff — one row per family, regressions called out. */
+export function renderDiff(diff: BaselineDiff, io: Io): string[] {
+  const s = io.style;
   const out: string[] = [];
-  out.push(`  baseline: ${diff.baselineTarget} (seed ${diff.baselineSeed})`);
+  out.push(`  ${s.bold('baseline')} ${diff.baselineTarget} ${s.dim(`(seed ${diff.baselineSeed})`)}`);
   if (!diff.comparable) {
-    out.push('  NOTE: baseline target/seed differs from this run — the diff is indicative only.');
-  }
-  out.push(`  overall ASR delta ${signed(diff.overallDelta)}`);
-  out.push('  family              baseline  current   delta   new  fixed');
-  out.push('  ' + '-'.repeat(58));
-  for (const f of diff.families) {
-    if (!f.inCurrent) {
-      out.push(`  ${f.family.padEnd(20)}${pct(f.baselineAsr).padStart(6)}   (not run in this scan)`);
-      continue;
-    }
-    const marker = f.regressed ? ' <-- regressed' : '';
-    const baseline = f.inBaseline ? pct(f.baselineAsr).padStart(6) : '   new';
     out.push(
-      `  ${f.family.padEnd(20)}${baseline}   ${pct(f.currentAsr).padStart(6)}  ` +
-        `${signed(f.delta).padStart(7)}  ${String(f.newFindings.length).padStart(4)}  ` +
-        `${String(f.fixedFindings.length).padStart(5)}${marker}`,
+      s.yellow('  NOTE: baseline target/seed differs from this run — the diff is indicative only.'),
     );
   }
-  out.push('  ' + '-'.repeat(58));
+  const delta = diff.overallDelta;
+  const deltaStyle = delta > 0 ? s.red : delta < 0 ? s.green : s.dim;
+  out.push(`  overall ASR delta ${deltaStyle(signed(delta))}`);
+
+  const rows = diff.families.map((f) => {
+    if (!f.inCurrent) {
+      return [f.family, pct(f.baselineAsr), s.dim('(not run in this scan)'), '', '', ''];
+    }
+    const move = f.delta > 0 ? s.red(signed(f.delta)) : f.delta < 0 ? s.green(signed(f.delta)) : s.dim(signed(f.delta));
+    return [
+      f.regressed ? s.red(f.family) : f.family,
+      f.inBaseline ? pct(f.baselineAsr) : s.dim('new'),
+      pct(f.currentAsr),
+      move,
+      f.newFindings.length > 0 ? s.red(String(f.newFindings.length)) : String(f.newFindings.length),
+      f.fixedFindings.length > 0
+        ? s.green(String(f.fixedFindings.length))
+        : String(f.fixedFindings.length),
+    ];
+  });
+
+  out.push(
+    ...renderTable({
+      columns: [
+        { header: 'family' },
+        { header: 'baseline', align: 'right' },
+        { header: 'current', align: 'right' },
+        { header: 'delta', align: 'right' },
+        { header: 'new', align: 'right' },
+        { header: 'fixed', align: 'right' },
+      ],
+      rows,
+      indent: '  ',
+      border: s.dim,
+    }),
+  );
   out.push(
     `  ${diff.newFindings.length} new finding(s), ${diff.fixedFindings.length} fixed finding(s)`,
   );

@@ -123,6 +123,12 @@ export interface ScanOptions {
   createTarget?: () => TargetAdapter | Promise<TargetAdapter>;
   /** Bounded retry for transient target failures (timeout / 429 / 5xx). */
   retry?: RetryOptions;
+  /**
+   * Called as each attempt completes, for a terminal progress line. Purely
+   * informational: it fires in COMPLETION order (which a concurrent run does not
+   * fix), carries nothing the report reads, and must never influence the result.
+   */
+  onProgress?: (info: { completed: number; total: number; payload: AttackPayload }) => void;
 }
 
 export interface ScanResult {
@@ -314,6 +320,7 @@ export async function runScan(opts: ScanOptions): Promise<ScanResult> {
   // Index-addressed results: workers race, the array stays in payload order.
   const attempts = new Array<Attempt | undefined>(payloads.length);
   let next = 0;
+  let completed = 0;
   await Promise.all(
     workers.map(async (worker) => {
       for (;;) {
@@ -322,6 +329,8 @@ export async function runScan(opts: ScanOptions): Promise<ScanResult> {
         const payload = payloads[index];
         if (payload === undefined) return;
         attempts[index] = await runOne(opts, worker, payload, forbidden, tools, trials, opts.seed);
+        completed += 1;
+        opts.onProgress?.({ completed, total: payloads.length, payload });
       }
     }),
   );

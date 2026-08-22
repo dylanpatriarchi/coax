@@ -42,7 +42,9 @@ import { runUtilitySuite } from '../../report/utility.js';
 import type { UtilityOptions, UtilityReport } from '../../report/utility.js';
 import { scenarioAttempts, scenarioComparisonSource } from '../../scenarios/index.js';
 import { CliError } from '../args.js';
-import type { ScanArgs } from '../args.js';
+import type { GlobalArgs, ScanArgs } from '../args.js';
+import { showBanner } from '../banner.js';
+import { createProgress } from '../progress.js';
 import { diffReports, loadBaseline, renderDiff } from '../baseline.js';
 import type { BaselineDiff } from '../baseline.js';
 import { EXIT_OK, EXIT_UNAUTHORIZED } from '../exit-codes.js';
@@ -51,8 +53,12 @@ import type { Io } from '../io.js';
 import { canonicalJson } from '../json.js';
 import { evaluatePolicy } from '../policy.js';
 import { selectDefenses, selectModules, surfaceFilter } from '../select.js';
+import { renderTable } from '../table.js';
+import { severityChip, verdictStyle } from '../theme.js';
 import { renderDefenseComparison, renderScanSummary } from '../summary.js';
 import { loadTarget } from '../load-target.js';
+
+type ScanProgress = (info: { payload: { id: string } }) => void;
 
 /** Everything the run needs about "what am I scanning", resolved once. */
 interface ResolvedTarget {
@@ -87,7 +93,12 @@ async function resolveTarget(args: ScanArgs): Promise<ResolvedTarget> {
 }
 
 /** Assemble the `runScan` options — the one place flags become library options. */
-function scanOptions(args: ScanArgs, resolved: ResolvedTarget, io: Io) {
+function scanOptions(
+  args: ScanArgs,
+  resolved: ResolvedTarget,
+  io: Io,
+  onProgress?: ScanProgress,
+) {
   const modules = selectModules(createAttackRegistry().list(), {
     ...(args.only !== undefined ? { only: args.only } : {}),
     ...(args.exclude !== undefined ? { exclude: args.exclude } : {}),
@@ -111,6 +122,7 @@ function scanOptions(args: ScanArgs, resolved: ResolvedTarget, io: Io) {
         io.err(`  retrying after transient target failure (attempt ${attempt}, ${delayMs}ms)`);
       },
     },
+    ...(onProgress !== undefined ? { onProgress } : {}),
   };
 }
 
@@ -133,10 +145,14 @@ async function dryRun(
     );
     return EXIT_OK;
   }
-  io.out(`coax scan --dry-run — target: ${resolved.target.name}  seed: ${args.seed}`);
+  const s = io.style;
+  io.out(
+    `  ${s.bold('dry run')} ${s.dim('·')} target ${resolved.target.name} ${s.dim('·')} seed ${args.seed}`,
+  );
   const sends = payloads.length * args.trials;
   io.out(
-    `  ${payloads.length} payload(s) would be sent${args.trials > 1 ? ` x ${args.trials} trials = ${sends} sends` : ''}; ` +
+    `  ${payloads.length} payload(s) would be sent` +
+      `${args.trials > 1 ? ` x ${args.trials} trials = ${sends} sends` : ''}; ` +
       'the target is not contacted.',
   );
   if (defenses.length > 0) {
@@ -148,14 +164,26 @@ async function dryRun(
     );
   }
   io.out('');
-  const idWidth = Math.max(...payloads.map((p) => p.id.length), 10);
-  const famWidth = Math.max(...payloads.map((p) => p.family.length), 6);
-  for (const p of payloads) {
-    io.out(
-      `  ${p.id.padEnd(idWidth + 2)}${p.family.padEnd(famWidth + 2)}` +
-        `${p.surface.padEnd(12)}${p.severity.padEnd(10)}${p.technique}`,
-    );
-  }
+  io.out(
+    renderTable({
+      columns: [
+        { header: 'payload' },
+        { header: 'family' },
+        { header: 'surface' },
+        { header: 'severity' },
+        { header: 'technique' },
+      ],
+      rows: payloads.map((p) => [
+        s.cyan(p.id),
+        p.family,
+        p.surface,
+        severityChip(s, p.severity),
+        s.dim(p.technique),
+      ]),
+      indent: '  ',
+      border: s.dim,
+    }).join('\n'),
+  );
   return EXIT_OK;
 }
 
@@ -202,8 +230,15 @@ function writeReports(outDir: string, report: ScanReport, io: Io): void {
   io.out(`\n  report written to ${join(outDir, 'report.md')}, report.html and report.json`);
 }
 
-export async function runScanCommand(args: ScanArgs, io: Io): Promise<number> {
+export async function runScanCommand(
+  args: ScanArgs,
+  globals: GlobalArgs,
+  io: Io,
+): Promise<number> {
   const human = humanIo(io, args.json);
+  // The banner follows stdout's contract: never in --json (where the human
+  // stream is stderr anyway), never under --quiet.
+  if (!args.json) showBanner(human, globals);
   const resolved = await resolveTarget(args);
 
   const gate = checkAuthorization({
@@ -229,7 +264,19 @@ export async function runScanCommand(args: ScanArgs, io: Io): Promise<number> {
 
   if (args.dryRun) return dryRun(args, resolved, defenses, io);
 
-  const options = scanOptions(args, resolved, human);
+  // The progress line exists only on an interactive terminal; `createProgress`
+  // returns a no-op otherwise, so nothing downstream branches on it and the
+  // report bytes are identical either way.
+  const planned = await planScan(scanOptions(args, resolved, human));
+  const progress = createProgress(io, {
+    // With defenses the suite runs twice — baseline, then defended.
+    total: planned.length * (defenses.length > 0 ? 2 : 1),
+    columns: io.columns,
+    enabled: !args.json && !globals.quiet,
+  });
+  const options = scanOptions(args, resolved, human, ({ payload }) => {
+    progress.tick(payload.id);
+  });
   const oracles = options.oracles;
 
   // Measure utility on a PRISTINE target (a fresh mock, or the user's module) so
@@ -252,35 +299,41 @@ export async function runScanCommand(args: ScanArgs, io: Io): Promise<number> {
   let comparison: DefenseComparison | undefined;
   let attackedTarget = resolved.target;
 
-  if (defenses.length > 0) {
-    // With controls in place the interesting number is the DELTA, so the suite
-    // runs twice from one seed and the report carries both columns. The defended
-    // run is the one that becomes the report: it describes the system as
-    // configured, and the thresholds gate it.
-    const compared = await compareDefenses({
-      ...options,
-      defenses,
-      ...(withScenarios ? { extraAttempts: scenarioComparisonSource(scenarioOpts) } : {}),
-      utility: args.utility ? utilityOpts : false,
-      utilityTarget: makeUtilityTarget,
-    });
-    result = compared.defended;
-    scenAttempts = compared.defendedExtra;
-    utility = compared.comparison.utility?.defended;
-    comparison = compared.comparison;
-    attackedTarget = withDefenses(resolved.target, defenses);
-  } else {
-    result = await runScan(options);
-    // Scenarios and the utility suite are independent of one another (the scan
-    // result is already computed), so overlap them.
-    const [scen, util] = await Promise.all([
-      withScenarios ? scenarioAttempts(scenarioOpts) : Promise.resolve([]),
-      args.utility
-        ? runUtilitySuite(makeUtilityTarget(), oracles, utilityOpts)
-        : Promise.resolve(undefined),
-    ]);
-    scenAttempts = scen;
-    utility = util;
+  try {
+    if (defenses.length > 0) {
+      // With controls in place the interesting number is the DELTA, so the suite
+      // runs twice from one seed and the report carries both columns. The
+      // defended run is the one that becomes the report: it describes the system
+      // as configured, and the thresholds gate it.
+      const compared = await compareDefenses({
+        ...options,
+        defenses,
+        ...(withScenarios ? { extraAttempts: scenarioComparisonSource(scenarioOpts) } : {}),
+        utility: args.utility ? utilityOpts : false,
+        utilityTarget: makeUtilityTarget,
+      });
+      result = compared.defended;
+      scenAttempts = compared.defendedExtra;
+      utility = compared.comparison.utility?.defended;
+      comparison = compared.comparison;
+      attackedTarget = withDefenses(resolved.target, defenses);
+    } else {
+      result = await runScan(options);
+      // Scenarios and the utility suite are independent of one another (the scan
+      // result is already computed), so overlap them.
+      const [scen, util] = await Promise.all([
+        withScenarios ? scenarioAttempts(scenarioOpts) : Promise.resolve([]),
+        args.utility
+          ? runUtilitySuite(makeUtilityTarget(), oracles, utilityOpts)
+          : Promise.resolve(undefined),
+      ]);
+      scenAttempts = scen;
+      utility = util;
+    }
+  } finally {
+    // Erase the progress line whatever happened, so an error message is never
+    // printed on top of it.
+    progress.done();
   }
 
   const [fp, adaptive] = await Promise.all([
@@ -318,8 +371,8 @@ export async function runScanCommand(args: ScanArgs, io: Io): Promise<number> {
   }
 
   if (diff) {
-    human.out('\n  regression vs. baseline:');
-    for (const line of renderDiff(diff)) human.out(line);
+    human.out(`\n  ${human.style.bold('regression vs. baseline')}`);
+    for (const line of renderDiff(diff, human)) human.out(line);
   }
 
   if (args.out !== undefined) writeReports(args.out, report, human);
@@ -336,6 +389,6 @@ export async function runScanCommand(args: ScanArgs, io: Io): Promise<number> {
     diff,
     { defended: comparison !== undefined },
   );
-  human.out(`\n${verdict.line}`);
+  human.out(`\n${verdictStyle(human.style, verdict.level)(verdict.line)}`);
   return verdict.exitCode;
 }

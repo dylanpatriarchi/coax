@@ -17,6 +17,7 @@ import { createOracleRegistry } from '../../oracles/index.js';
 import { BUILTIN_SCENARIOS } from '../../scenarios/index.js';
 import { EXIT_OK } from '../exit-codes.js';
 import { canonicalJson } from '../json.js';
+import { padVisible } from '../ansi.js';
 import type { Io } from '../io.js';
 import type { ListArgs, ListKind } from '../args.js';
 
@@ -93,18 +94,41 @@ function sections(kind: ListKind): Section[] {
   return kind === 'all' ? all : all.filter((s) => s.kind === kind);
 }
 
+/**
+ * Rows are grouped under their family when they have one: the registries are
+ * long enough now that a flat list buries the structure, and "which jailbreak
+ * modules do I have?" is the question people actually arrive with. Taxonomy tags
+ * are dimmed — they are reference data, not the thing being scanned for.
+ */
 function renderSection(io: Io, section: Section): void {
-  io.out(`${section.title} (${section.rows.length}):`);
+  const s = io.style;
+  io.out(`${s.bold(section.title)} ${s.dim(`(${section.rows.length})`)}`);
   if (section.rows.length === 0) {
-    io.out(`  ${section.emptyNote ?? '(none)'}`);
+    io.out(`  ${s.dim(section.emptyNote ?? '(none)')}`);
     return;
   }
+
   const idWidth = Math.max(...section.rows.map((r) => r.id.length));
-  const famWidth = Math.max(...section.rows.map((r) => (r.family ?? '').length));
+  const line = (row: Row, indent: string): string => {
+    const tags =
+      row.taxonomy && row.taxonomy.length > 0 ? `${s.dim(`[${row.taxonomy.join(' ')}]`)} ` : '';
+    return `${indent}${s.cyan(padVisible(row.id, idWidth))}  ${tags}${s.dim(row.detail)}`;
+  };
+
+  const grouped = section.rows.every((r) => r.family !== undefined);
+  if (!grouped) {
+    for (const row of section.rows) io.out(line(row, '  '));
+    return;
+  }
+
+  const families = new Map<string, Row[]>();
   for (const row of section.rows) {
-    const family = famWidth > 0 ? `${(row.family ?? '').padEnd(famWidth + 2)}` : '';
-    const tags = row.taxonomy && row.taxonomy.length > 0 ? `[${row.taxonomy.join(' ')}] ` : '';
-    io.out(`  ${row.id.padEnd(idWidth + 2)}${family}${tags}${row.detail}`);
+    const key = row.family as string;
+    families.set(key, [...(families.get(key) ?? []), row]);
+  }
+  for (const [family, rows] of families) {
+    io.out(`  ${s.bold(family)}`);
+    for (const row of rows) io.out(line(row, '    '));
   }
 }
 

@@ -10,7 +10,7 @@ function scan(argv: string[]) {
 
 describe('parseArgs — commands', () => {
   it('defaults to help with no arguments', () => {
-    expect(parseArgs([])).toEqual({ command: 'help' });
+    expect(parseArgs([])).toMatchObject({ command: 'help' });
   });
 
   it('accepts version as a command and as a flag', () => {
@@ -20,8 +20,8 @@ describe('parseArgs — commands', () => {
   });
 
   it('routes --help on a command to that command topic', () => {
-    expect(parseArgs(['scan', '--help'])).toEqual({ command: 'help', topic: 'scan' });
-    expect(parseArgs(['help', 'list'])).toEqual({ command: 'help', topic: 'list' });
+    expect(parseArgs(['scan', '--help'])).toMatchObject({ command: 'help', topic: 'scan' });
+    expect(parseArgs(['help', 'list'])).toMatchObject({ command: 'help', topic: 'list' });
   });
 
   it('rejects an unknown command with the list of real ones', () => {
@@ -149,6 +149,32 @@ describe('parseArgs — errors', () => {
   });
 });
 
+describe('parseArgs — global flags', () => {
+  it('accepts --no-color and --quiet before or after the command', () => {
+    expect(parseArgs(['--no-color', 'scan']).globals.color).toBe(false);
+    expect(parseArgs(['scan', '--no-color']).globals.color).toBe(false);
+    expect(parseArgs(['scan', '--color']).globals.color).toBe(true);
+    expect(parseArgs(['--quiet', 'list']).globals.quiet).toBe(true);
+    expect(parseArgs(['list', '--quiet']).globals.quiet).toBe(true);
+  });
+
+  it('leaves colour undecided when neither flag is given', () => {
+    const parsed = parseArgs(['scan']);
+    expect(parsed.globals.color).toBeUndefined();
+    expect(parsed.globals.quiet).toBe(false);
+  });
+
+  it('works on a bare invocation and on demo, which take no other flags', () => {
+    expect(parseArgs(['--quiet']).command).toBe('help');
+    expect(parseArgs(['demo', '--no-color'])).toMatchObject({ command: 'demo' });
+  });
+
+  it('does not leak into the per-command flag namespace', () => {
+    const scanArgs = scan(['scan', '--quiet']);
+    expect('quiet' in scanArgs).toBe(false);
+  });
+});
+
 describe('renderHelp', () => {
   it('is generated from the flag table, so every scan flag appears', () => {
     const help = renderHelp();
@@ -179,6 +205,13 @@ describe('renderHelp', () => {
     const help = renderHelp();
     expect(help).toContain('the report describes the DEFENDED system');
     expect(help).toContain('Gate on what you ship.');
+  });
+
+  it('documents the global flags', () => {
+    const help = renderHelp();
+    expect(help).toContain('global flags:');
+    expect(help).toContain('--color');
+    expect(help).toContain('--quiet');
   });
 
   it('documents the exit-code contract', () => {
