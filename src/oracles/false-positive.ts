@@ -138,6 +138,7 @@ export const BENIGN_CORPUS: readonly BenignCase[] = [
         },
       ],
     },
+  },
   // ---- Benign tool manifests: the manifest oracle must stay silent on these. ----
   {
     label: 'manifest-weather',
