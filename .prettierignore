@@ -7,7 +7,3 @@ package-lock.json
 # Markdown is hand-wrapped (tables, ASCII report samples); Prettier reflows it.
 *.md
 
-# src/ predates Prettier. Reformatting the whole tree here would collide with
-# in-flight work, so it lands as a separate mechanical pass. ESLint already
-# covers src/; write new code Prettier-clean.
-src/

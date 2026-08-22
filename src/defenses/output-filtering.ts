@@ -76,7 +76,9 @@ function argText(call: ToolCall): string {
 
 export function createOutputFilter(opts: OutputFilterOptions = {}): Defense {
   // Longest-first so a secret that contains another is redacted whole.
-  const secrets = [...(opts.secrets ?? [])].filter((s) => s.length > 0).sort((a, b) => b.length - a.length);
+  const secrets = [...(opts.secrets ?? [])]
+    .filter((s) => s.length > 0)
+    .sort((a, b) => b.length - a.length);
   const allowedHosts = (opts.allowedHosts ?? []).map((h) => h.toLowerCase());
   const marker = opts.redactionMarker ?? DEFAULT_MARKER;
   const aggressive = opts.redactSecretShapedStrings ?? false;
@@ -115,7 +117,8 @@ export function createOutputFilter(opts: OutputFilterOptions = {}): Defense {
       const notes: string[] = [];
 
       const redactedOutput = redact(response.output);
-      if (redactedOutput !== response.output) notes.push('redacted secret(s) from the response text');
+      if (redactedOutput !== response.output)
+        notes.push('redacted secret(s) from the response text');
 
       const kept: ToolCall[] = [];
       for (const call of response.toolCalls) {

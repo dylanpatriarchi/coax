@@ -89,16 +89,16 @@ describe('parseArgs — errors', () => {
   });
 
   it('rejects a non-numeric number', () => {
-    expect(() => parseArgs(['scan', '--seed', 'abc'])).toThrow(/--seed expects a number, got "abc"/);
+    expect(() => parseArgs(['scan', '--seed', 'abc'])).toThrow(
+      /--seed expects a number, got "abc"/,
+    );
   });
 
   it('rejects out-of-range and malformed values through zod', () => {
     expect(() => parseArgs(['scan', '--max-asr', '3'])).toThrow(/--max-asr/);
     expect(() => parseArgs(['scan', '--concurrency', '0'])).toThrow(/--concurrency/);
     expect(() => parseArgs(['scan', '--retries', '2.5'])).toThrow(/--retries/);
-    expect(() => parseArgs(['scan', '--fail-on-severity', 'urgent'])).toThrow(
-      /--fail-on-severity/,
-    );
+    expect(() => parseArgs(['scan', '--fail-on-severity', 'urgent'])).toThrow(/--fail-on-severity/);
     expect(() => parseArgs(['scan', '--surface', 'telepathy'])).toThrow(/--surface/);
   });
 

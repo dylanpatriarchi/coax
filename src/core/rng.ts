@@ -63,7 +63,8 @@ export function makeRng(seed: number): Rng {
     return out;
   };
 
-  const sample = <T>(items: readonly T[], n: number): T[] => shuffle(items).slice(0, Math.max(0, n));
+  const sample = <T>(items: readonly T[], n: number): T[] =>
+    shuffle(items).slice(0, Math.max(0, n));
 
   const chance = (p = 0.5): boolean => float() < p;
 

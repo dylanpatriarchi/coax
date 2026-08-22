@@ -108,7 +108,8 @@ const BY_KEY = new Map(TRANSFORMS.map((t) => [t.key, t] as const));
 
 export function getTransform(key: string): Transform {
   const t = BY_KEY.get(key);
-  if (!t) throw new Error(`unknown transform "${key}". Available: ${[...BY_KEY.keys()].join(', ')}`);
+  if (!t)
+    throw new Error(`unknown transform "${key}". Available: ${[...BY_KEY.keys()].join(', ')}`);
   return t;
 }
 

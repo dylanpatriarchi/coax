@@ -89,7 +89,9 @@ describe('MockAgent', () => {
   });
 
   it('enforces namespace scope when isolation is enabled', async () => {
-    const agent = new MockAgent({ vulnerabilities: { crossNamespaceRetrieval: false, trustRetrievedChunks: false } });
+    const agent = new MockAgent({
+      vulnerabilities: { crossNamespaceRetrieval: false, trustRetrievedChunks: false },
+    });
     await agent.injectContent({
       channel: 'retrieval',
       source: 'vector://tenant-b/finance/chunk-77',

@@ -58,9 +58,13 @@ describe('trust & identity attack modules', () => {
 
   it('trust-exploitation tags ASI09/LLM09 and identity-abuse tags ASI03/LLM06', async () => {
     const trust = trustExploitationModule.generate(await ctx(1));
-    expect(trust.every((p) => p.taxonomy.includes('ASI09') && p.taxonomy.includes('LLM09'))).toBe(true);
+    expect(trust.every((p) => p.taxonomy.includes('ASI09') && p.taxonomy.includes('LLM09'))).toBe(
+      true,
+    );
     const identity = identityAbuseModule.generate(await ctx(1));
-    expect(identity.every((p) => p.taxonomy.includes('ASI03') && p.taxonomy.includes('LLM06'))).toBe(true);
+    expect(
+      identity.every((p) => p.taxonomy.includes('ASI03') && p.taxonomy.includes('LLM06')),
+    ).toBe(true);
   });
 
   it.each(MODULES)('module "$id" lands at least one hit on the vulnerable mock', async (m) => {
@@ -70,13 +74,17 @@ describe('trust & identity attack modules', () => {
 
   it('trust-exploitation actually activates the trust oracle end-to-end', async () => {
     const result = await scan(trustExploitationModule);
-    const fired = result.attempts.flatMap((a) => a.verdicts.filter((v) => v.success).map((v) => v.oracleId));
+    const fired = result.attempts.flatMap((a) =>
+      a.verdicts.filter((v) => v.success).map((v) => v.oracleId),
+    );
     expect(fired).toContain('trust');
   });
 
   it('identity-abuse actually activates the privilege oracle end-to-end', async () => {
     const result = await scan(identityAbuseModule);
-    const fired = result.attempts.flatMap((a) => a.verdicts.filter((v) => v.success).map((v) => v.oracleId));
+    const fired = result.attempts.flatMap((a) =>
+      a.verdicts.filter((v) => v.success).map((v) => v.oracleId),
+    );
     expect(fired).toContain('privilege');
   });
 

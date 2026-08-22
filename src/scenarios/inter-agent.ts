@@ -25,7 +25,8 @@ export const interAgentScenario: Scenario = {
   surface: 'inter-agent',
   severity: 'critical',
   taxonomy: ['ASI07', 'ASI08', 'LLM01'],
-  description: 'Forge a supervisor directive on the inter-agent bus; the trusting worker leaks and it cascades.',
+  description:
+    'Forge a supervisor directive on the inter-agent bus; the trusting worker leaks and it cascades.',
 
   async run(ctx: ScenarioContext): Promise<ScenarioResult> {
     const turn = await driveTurn(ctx, 1, {

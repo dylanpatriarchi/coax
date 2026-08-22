@@ -81,7 +81,9 @@ export function evaluatePolicy(
     const floor = SEVERITY_RANK[thresholds.failOnSeverity];
     const at = report.findings.filter((f) => SEVERITY_RANK[f.severity] >= floor);
     if (at.length > 0) {
-      const worst = at.reduce((a, b) => (SEVERITY_RANK[b.severity] > SEVERITY_RANK[a.severity] ? b : a));
+      const worst = at.reduce((a, b) =>
+        SEVERITY_RANK[b.severity] > SEVERITY_RANK[a.severity] ? b : a,
+      );
       breaches.push(
         `${at.length} finding(s) at or above severity "${thresholds.failOnSeverity}" ` +
           `(worst: ${worst.severity} — ${worst.payloadId}) [--fail-on-severity]`,
@@ -95,7 +97,10 @@ export function evaluatePolicy(
     );
   }
 
-  if (thresholds.maxWeightedAsr !== undefined && report.overall.weightedAsr > thresholds.maxWeightedAsr) {
+  if (
+    thresholds.maxWeightedAsr !== undefined &&
+    report.overall.weightedAsr > thresholds.maxWeightedAsr
+  ) {
     breaches.push(
       `severity-weighted ASR ${pct(report.overall.weightedAsr)} exceeds the ` +
         `${pct(thresholds.maxWeightedAsr)} limit [--max-weighted-asr]`,

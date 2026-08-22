@@ -27,8 +27,14 @@ describe('responsible-use gate', () => {
   });
 
   it('allows remote targets with the flag or env acknowledgement', () => {
-    expect(checkAuthorization({ target: 'https://api.example.com', flag: true }).allowed).toBe(true);
-    expect(checkAuthorization({ target: 'https://api.example.com', env: 'true' }).allowed).toBe(true);
-    expect(checkAuthorization({ target: 'https://api.example.com', env: 'nope' }).allowed).toBe(false);
+    expect(checkAuthorization({ target: 'https://api.example.com', flag: true }).allowed).toBe(
+      true,
+    );
+    expect(checkAuthorization({ target: 'https://api.example.com', env: 'true' }).allowed).toBe(
+      true,
+    );
+    expect(checkAuthorization({ target: 'https://api.example.com', env: 'nope' }).allowed).toBe(
+      false,
+    );
   });
 });

@@ -30,9 +30,9 @@ Everything must pass before you open a PR. If the coverage gate trips, add
 tests — do not lower the thresholds in `vitest.config.ts` unless you are
 deliberately removing covered code, and say so in the PR.
 
-> `src/` is currently excluded from Prettier (`.prettierignore`) — it predates
-> the config and gets reformatted in a separate mechanical pass. ESLint still
-> covers it. Write new code Prettier-clean anyway.
+> `npm run format` fixes formatting in place. Markdown is excluded
+> (`.prettierignore`) because the docs are hand-wrapped and carry ASCII report
+> samples Prettier would reflow — wrap prose yourself at ~80 columns.
 
 ## The architectural contract
 

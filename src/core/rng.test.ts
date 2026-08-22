@@ -11,8 +11,20 @@ describe('seeded rng', () => {
   });
 
   it('differs across seeds', () => {
-    const a = Array.from({ length: 10 }, ((r) => () => r.float())(makeRng(1)));
-    const b = Array.from({ length: 10 }, ((r) => () => r.float())(makeRng(2)));
+    const a = Array.from(
+      { length: 10 },
+      (
+        (r) => () =>
+          r.float()
+      )(makeRng(1)),
+    );
+    const b = Array.from(
+      { length: 10 },
+      (
+        (r) => () =>
+          r.float()
+      )(makeRng(2)),
+    );
     expect(a).not.toEqual(b);
   });
 

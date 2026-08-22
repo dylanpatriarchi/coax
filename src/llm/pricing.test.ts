@@ -84,7 +84,10 @@ describe('CachingModel spend', () => {
 
   it('costs nothing when the inner model declares no price', async () => {
     const budget = new CallBudget(5, 0.01);
-    const model = new CachingModel(scriptedModel((p) => p), budget);
+    const model = new CachingModel(
+      scriptedModel((p) => p),
+      budget,
+    );
     await model.complete('a');
     expect(budget.spentUsd).toBe(0);
   });

@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { allow, block, isDefendedTarget, withDefenses } from './defense.js';
 import type { Defense } from './defense.js';
-import type { AgentInput, AgentResponse, InjectedContent, TargetAdapter, ToolSpec } from './target.js';
+import type {
+  AgentInput,
+  AgentResponse,
+  InjectedContent,
+  TargetAdapter,
+  ToolSpec,
+} from './target.js';
 import { supportsInjection, supportsTools } from './target.js';
 
 /** A target with EVERY optional capability. */
-function fullTarget(): TargetAdapter & { staged: InjectedContent[]; resets: number; seen: string[] } {
+function fullTarget(): TargetAdapter & {
+  staged: InjectedContent[];
+  resets: number;
+  seen: string[];
+} {
   const staged: InjectedContent[] = [];
   const seen: string[] = [];
   const t = {

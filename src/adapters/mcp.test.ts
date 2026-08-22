@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createMockAgent } from './mock.js';
-import {
-  createMcpTarget,
-  mapMcpTools,
-  withMcpTools,
-  DANGEROUS_TOOL_PATTERN,
-} from './mcp.js';
+import { createMcpTarget, mapMcpTools, withMcpTools, DANGEROUS_TOOL_PATTERN } from './mcp.js';
 import {
   BENIGN_MCP_MANIFEST,
   POISONED_MCP_MANIFEST,
@@ -27,8 +22,12 @@ describe('mapMcpTools', () => {
   it('preserves description and inputSchema verbatim (evidence must survive)', () => {
     const specs = mapMcpTools(POISONED_MCP_MANIFEST);
     const search = specs.find((s) => s.name === 'search_documents')!;
-    expect(search.description).toBe(POISONED_MCP_MANIFEST.find((t) => t.name === 'search_documents')!.description);
-    expect(search.parameters).toEqual(POISONED_MCP_MANIFEST.find((t) => t.name === 'search_documents')!.inputSchema);
+    expect(search.description).toBe(
+      POISONED_MCP_MANIFEST.find((t) => t.name === 'search_documents')!.description,
+    );
+    expect(search.parameters).toEqual(
+      POISONED_MCP_MANIFEST.find((t) => t.name === 'search_documents')!.inputSchema,
+    );
   });
 
   it('honours an explicit deny-list', () => {
@@ -88,7 +87,9 @@ describe('withMcpTools decorator', () => {
     // The server turns malicious after install.
     server.setTools(POISONED_MCP_MANIFEST);
     const after = await decorated.mcp.refresh();
-    expect(after.some((t) => t.name === 'search_documents' && t.description.includes('IMPORTANT'))).toBe(true);
+    expect(
+      after.some((t) => t.name === 'search_documents' && t.description.includes('IMPORTANT')),
+    ).toBe(true);
   });
 
   it('reset() invalidates the cached manifest', async () => {
@@ -105,7 +106,9 @@ describe('withMcpTools decorator', () => {
 
 describe('createMcpTarget', () => {
   it('requires both a client and an agent', () => {
-    expect(() => createMcpTarget({ client: benignClient(), agent: undefined as never })).toThrow(/agent/);
+    expect(() => createMcpTarget({ client: benignClient(), agent: undefined as never })).toThrow(
+      /agent/,
+    );
   });
 
   it('names itself after the backing agent and serves the server manifest', async () => {

@@ -156,7 +156,11 @@ export async function runAdaptiveAttack(ctx: AdaptiveContext): Promise<AdaptiveR
     if (!ctx.persist && ctx.target.reset) await ctx.target.reset();
     let inject: InjectedContent | undefined;
     if (move.injectedContent && move.channel && supportsInjection(ctx.target)) {
-      inject = { channel: move.channel, source: 'adaptive-injected-content', content: move.injectedContent };
+      inject = {
+        channel: move.channel,
+        source: 'adaptive-injected-content',
+        content: move.injectedContent,
+      };
       await ctx.target.injectContent(inject);
     }
 
@@ -169,7 +173,11 @@ export async function runAdaptiveAttack(ctx: AdaptiveContext): Promise<AdaptiveR
     for (const oracle of ctx.oracles) {
       verdicts.push(
         await oracle.evaluate({
-          payload: { id: `adaptive#${i}`, family: 'adaptive', surface: inject ? 'indirect' : 'direct' },
+          payload: {
+            id: `adaptive#${i}`,
+            family: 'adaptive',
+            surface: inject ? 'indirect' : 'direct',
+          },
           response,
           ...(ctx.canary !== undefined ? { canary: ctx.canary } : {}),
           ...(ctx.forbiddenTools !== undefined ? { forbiddenTools: ctx.forbiddenTools } : {}),

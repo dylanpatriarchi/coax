@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  colorEnabled,
-  createStyles,
-  padVisible,
-  PLAIN,
-  stripAnsi,
-  visibleWidth,
-} from './ansi.js';
+import { colorEnabled, createStyles, padVisible, PLAIN, stripAnsi, visibleWidth } from './ansi.js';
 import { renderBanner, bannerLine, BANNER_WIDTH } from './banner.js';
 import { captureIo } from './io.js';
 import { createProgress } from './progress.js';

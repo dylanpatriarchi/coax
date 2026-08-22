@@ -67,7 +67,8 @@ const EXPECTED_ORACLES: string[] = ['policy', 'canary'];
 export const policyPuppetryModule: AttackModule = {
   id: 'policy-puppetry',
   family: 'direct-override',
-  description: 'Policy Puppetry (HiddenLayer 2025): instructions disguised as a config/policy file.',
+  description:
+    'Policy Puppetry (HiddenLayer 2025): instructions disguised as a config/policy file.',
   taxonomy: ['LLM01', 'LLM07', 'AML.T0051'],
 
   generate(ctx: AttackContext): AttackPayload[] {

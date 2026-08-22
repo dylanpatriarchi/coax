@@ -65,9 +65,7 @@ export const InjectedContentSchema = z.object({
   channel: IngestChannelSchema,
   source: z
     .string()
-    .describe(
-      'url / filename / sender / vector-store namespace the agent believes this came from',
-    ),
+    .describe('url / filename / sender / vector-store namespace the agent believes this came from'),
   content: z.string(),
 });
 export type InjectedContent = z.infer<typeof InjectedContentSchema>;

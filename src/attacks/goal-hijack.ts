@@ -24,7 +24,11 @@ interface Framing {
   surface: 'direct' | 'indirect';
   technique: string;
   message: string;
-  inject?: { channel: 'web' | 'document' | 'tool_result' | 'email'; source: string; content: string };
+  inject?: {
+    channel: 'web' | 'document' | 'tool_result' | 'email';
+    source: string;
+    content: string;
+  };
 }
 
 const FRAMINGS: Framing[] = [
@@ -78,7 +82,8 @@ const EXPECTED_ORACLES: string[] = ['canary', 'egress', 'tool-trace', 'policy'];
 export const goalHijackModule: AttackModule = {
   id: 'goal-hijack',
   family: 'goal-hijack',
-  description: 'Replace the agent\'s standing objective (ASI01) — direct, recursive, cross-context, reflective.',
+  description:
+    "Replace the agent's standing objective (ASI01) — direct, recursive, cross-context, reflective.",
   taxonomy: ['ASI01', 'LLM01', 'AML.T0051'],
 
   generate(ctx: AttackContext): AttackPayload[] {

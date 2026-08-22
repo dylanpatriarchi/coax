@@ -93,12 +93,7 @@ async function resolveTarget(args: ScanArgs): Promise<ResolvedTarget> {
 }
 
 /** Assemble the `runScan` options — the one place flags become library options. */
-function scanOptions(
-  args: ScanArgs,
-  resolved: ResolvedTarget,
-  io: Io,
-  onProgress?: ScanProgress,
-) {
+function scanOptions(args: ScanArgs, resolved: ResolvedTarget, io: Io, onProgress?: ScanProgress) {
   const modules = selectModules(createAttackRegistry().list(), {
     ...(args.only !== undefined ? { only: args.only } : {}),
     ...(args.exclude !== undefined ? { exclude: args.exclude } : {}),
@@ -230,11 +225,7 @@ function writeReports(outDir: string, report: ScanReport, io: Io): void {
   io.out(`\n  report written to ${join(outDir, 'report.md')}, report.html and report.json`);
 }
 
-export async function runScanCommand(
-  args: ScanArgs,
-  globals: GlobalArgs,
-  io: Io,
-): Promise<number> {
+export async function runScanCommand(args: ScanArgs, globals: GlobalArgs, io: Io): Promise<number> {
   const human = humanIo(io, args.json);
   // The banner follows stdout's contract: never in --json (where the human
   // stream is stderr anyway), never under --quiet.

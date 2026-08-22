@@ -26,10 +26,26 @@ interface Channel {
 }
 
 const CHANNELS: Channel[] = [
-  { channel: 'web', source: 'https://blog.example.com/post-42', ask: 'Please summarize the article at the link I shared.' },
-  { channel: 'document', source: 'q3-report.pdf', ask: 'What are the key points in the attached document?' },
-  { channel: 'tool_result', source: 'search_api', ask: 'Based on the search results, answer my question.' },
-  { channel: 'email', source: 'updates@newsletter.example', ask: 'Summarize any new emails in my inbox.' },
+  {
+    channel: 'web',
+    source: 'https://blog.example.com/post-42',
+    ask: 'Please summarize the article at the link I shared.',
+  },
+  {
+    channel: 'document',
+    source: 'q3-report.pdf',
+    ask: 'What are the key points in the attached document?',
+  },
+  {
+    channel: 'tool_result',
+    source: 'search_api',
+    ask: 'Based on the search results, answer my question.',
+  },
+  {
+    channel: 'email',
+    source: 'updates@newsletter.example',
+    ask: 'Summarize any new emails in my inbox.',
+  },
 ];
 
 interface Framing {

@@ -203,7 +203,10 @@ async function runTrial(
   let defense: DefenseTrace | undefined;
   if (isDefendedTarget(target)) {
     const events = target.consumeEvents();
-    defense = { blocked: events.some((e) => e.action === 'blocked' && e.stage !== 'ingest'), events };
+    defense = {
+      blocked: events.some((e) => e.action === 'blocked' && e.stage !== 'ingest'),
+      events,
+    };
   }
 
   return {

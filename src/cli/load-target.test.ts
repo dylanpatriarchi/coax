@@ -22,6 +22,8 @@ describe('loadTarget', () => {
 
   it('a remote target endpoint requires authorization', () => {
     expect(checkAuthorization({ target: 'https://agent.example.com/v1' }).allowed).toBe(false);
-    expect(checkAuthorization({ target: 'https://agent.example.com/v1', flag: true }).allowed).toBe(true);
+    expect(checkAuthorization({ target: 'https://agent.example.com/v1', flag: true }).allowed).toBe(
+      true,
+    );
   });
 });

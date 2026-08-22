@@ -46,7 +46,8 @@ export async function loadTarget(path: string): Promise<LoadedTarget> {
     );
   }
 
-  const resolved = typeof candidate === 'function' ? await (candidate as () => unknown)() : candidate;
+  const resolved =
+    typeof candidate === 'function' ? await (candidate as () => unknown)() : candidate;
   if (!isAdapter(resolved)) {
     throw new Error(`Target module "${path}" did not resolve to a valid TargetAdapter.`);
   }

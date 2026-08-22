@@ -534,7 +534,9 @@ function extractGlobals(argv: readonly string[]): { globals: GlobalArgs; rest: s
   for (const [key, spec] of specs) shape[key] = spec.schema;
   const parsed = z.object(shape).safeParse(raw);
   if (!parsed.success) {
-    throw new CliError(`invalid flag value — ${parsed.error.issues[0]?.message ?? 'bad global flag'}`);
+    throw new CliError(
+      `invalid flag value — ${parsed.error.issues[0]?.message ?? 'bad global flag'}`,
+    );
   }
   return { globals: parsed.data as unknown as GlobalArgs, rest };
 }

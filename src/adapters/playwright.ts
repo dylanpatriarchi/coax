@@ -12,12 +12,7 @@
  * when you need this adapter:
  *   npm i -D playwright && npx playwright install chromium
  */
-import type {
-  AgentInput,
-  AgentResponse,
-  InjectedContent,
-  TargetAdapter,
-} from '../core/target.js';
+import type { AgentInput, AgentResponse, InjectedContent, TargetAdapter } from '../core/target.js';
 
 export interface PlaywrightAdapterConfig {
   /** URL of the agent's web UI. */
@@ -36,7 +31,9 @@ export interface PlaywrightAdapterConfig {
   timeoutMs?: number;
 }
 
-async function loadPlaywright(): Promise<{ chromium: { launch: (o: unknown) => Promise<unknown> } }> {
+async function loadPlaywright(): Promise<{
+  chromium: { launch: (o: unknown) => Promise<unknown> };
+}> {
   const pkg = 'playwright';
   try {
     // Non-literal specifier: tsc will not try to resolve it, so the package can
@@ -86,7 +83,11 @@ export class PlaywrightAgent implements TargetAdapter {
       if (this.staged.length > 0 && this.cfg.ingestUrlPattern) {
         const body = this.staged.map((c) => c.content).join('\n\n');
         await page.route(this.cfg.ingestUrlPattern, (route: any) =>
-          route.fulfill({ status: 200, contentType: this.cfg.ingestContentType ?? 'text/html', body }),
+          route.fulfill({
+            status: 200,
+            contentType: this.cfg.ingestContentType ?? 'text/html',
+            body,
+          }),
         );
       }
 

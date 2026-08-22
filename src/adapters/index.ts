@@ -13,12 +13,7 @@ export type { AnthropicAdapterConfig } from './anthropic.js';
 export { OllamaAgent, createOllamaAgent } from './ollama.js';
 export { PlaywrightAgent, createPlaywrightAgent } from './playwright.js';
 export type { PlaywrightAdapterConfig } from './playwright.js';
-export {
-  withMcpTools,
-  createMcpTarget,
-  mapMcpTools,
-  DANGEROUS_TOOL_PATTERN,
-} from './mcp.js';
+export { withMcpTools, createMcpTarget, mapMcpTools, DANGEROUS_TOOL_PATTERN } from './mcp.js';
 export type {
   McpAdapterConfig,
   McpToolPolicy,
@@ -36,5 +31,13 @@ export {
 } from './mcp-mock.js';
 
 /** Names of the built-in adapters, for docs/help output. */
-export const ADAPTER_KINDS = ['mock', 'http', 'openai', 'anthropic', 'ollama', 'playwright', 'mcp'] as const;
+export const ADAPTER_KINDS = [
+  'mock',
+  'http',
+  'openai',
+  'anthropic',
+  'ollama',
+  'playwright',
+  'mcp',
+] as const;
 export type AdapterKind = (typeof ADAPTER_KINDS)[number];

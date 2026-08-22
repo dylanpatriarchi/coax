@@ -164,7 +164,14 @@ describe('coax list', () => {
 describe('coax scan --dry-run', () => {
   it('prints the payload set without contacting the target', async () => {
     const target = explodingTarget('http://localhost:9999/v1');
-    const { code, out } = await cli('scan', '--dry-run', '--target', target, '--only', 'tool-abuse');
+    const { code, out } = await cli(
+      'scan',
+      '--dry-run',
+      '--target',
+      target,
+      '--only',
+      'tool-abuse',
+    );
     expect(code).toBe(EXIT_OK);
     expect(out).toContain('the target is not contacted');
     expect(out).toContain('tool-abuse/send_email-direct#0');
@@ -267,7 +274,9 @@ describe('coax scan --defense', () => {
     expect(report.meta.target).toContain('+defended');
     expect(report.defense.defenses.map((d) => d.id)).toEqual(['output-filtering', 'tool-guard']);
     expect(report.defense.defenses.every((d) => d.limitations.length > 0)).toBe(true);
-    expect(report.defense.overall.baseline.rate).toBeGreaterThan(report.defense.overall.defended.rate);
+    expect(report.defense.overall.baseline.rate).toBeGreaterThan(
+      report.defense.overall.defended.rate,
+    );
     expect(report.defense.byFamily[0]?.reduction).toBeGreaterThan(0);
   });
 
@@ -292,15 +301,7 @@ describe('coax scan --trials', () => {
   });
 
   it('carries hits/trials and the interval into report.json', async () => {
-    const { out } = await cli(
-      'scan',
-      ...FAST,
-      '--only',
-      'obfuscation',
-      '--trials',
-      '4',
-      '--json',
-    );
+    const { out } = await cli('scan', ...FAST, '--only', 'obfuscation', '--trials', '4', '--json');
     const report = JSON.parse(out) as {
       meta: { trials: number };
       overall: { total: number; lo: number; hi: number; asr: number };
@@ -423,7 +424,9 @@ describe('throughput', () => {
     expect(parallel.out).toBe(sequential.out);
     // ...and the defended workers really were defended: a lane that skipped the
     // stack would show a higher defended rate than lane 0 alone.
-    const report = JSON.parse(parallel.out) as { defense: { overall: { defended: { rate: number } } } };
+    const report = JSON.parse(parallel.out) as {
+      defense: { overall: { defended: { rate: number } } };
+    };
     expect(report.defense.overall.defended.rate).toBe(0);
   });
 });
