@@ -14,6 +14,10 @@
  *   - Every configured threshold is evaluated, not just the first to trip, so
  *     the verdict names all of them rather than making the user re-run to
  *     discover the next one.
+ *   - When defenses are active the report describes the DEFENDED system, so that
+ *     is what the thresholds gate — you ship the defended system, not the
+ *     baseline. The verdict says so out loud, because a build that passes on one
+ *     column and fails on the other must never be ambiguous about which it read.
  */
 import type { Severity } from '../core/attack.js';
 import type { ScanReport } from '../report/scoring.js';
@@ -51,11 +55,18 @@ export function hasThresholds(t: PolicyThresholds): boolean {
   );
 }
 
+export interface PolicyContext {
+  /** True when the scored report is the defended run of a `--defense` scan. */
+  defended?: boolean;
+}
+
 export function evaluatePolicy(
   report: ScanReport,
   thresholds: PolicyThresholds,
   diff?: BaselineDiff,
+  context: PolicyContext = {},
 ): PolicyVerdict {
+  const scope = context.defended === true ? ' (defended scan)' : '';
   const breaches: string[] = [];
 
   if (thresholds.failOnSeverity !== undefined) {
@@ -96,7 +107,7 @@ export function evaluatePolicy(
       ok: false,
       exitCode: EXIT_POLICY,
       breaches,
-      line: `verdict: FAIL — ${breaches.join('; ')}`,
+      line: `verdict: FAIL${scope} — ${breaches.join('; ')}`,
     };
   }
 
@@ -108,7 +119,7 @@ export function evaluatePolicy(
     exitCode: EXIT_OK,
     breaches: [],
     line: hasThresholds(thresholds)
-      ? `verdict: PASS — no threshold breached: ${summary}`
-      : `verdict: PASS — no thresholds configured: ${summary}`,
+      ? `verdict: PASS${scope} — no threshold breached: ${summary}`
+      : `verdict: PASS${scope} — no thresholds configured: ${summary}`,
   };
 }

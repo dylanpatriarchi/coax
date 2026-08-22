@@ -23,19 +23,24 @@ import { createMockAgent, MockConfigSchema } from '../../adapters/mock.js';
 import { adaptiveAttempts, runAdaptive } from '../../attacks/adaptive-runner.js';
 import { createAttackRegistry } from '../../attacks/index.js';
 import { checkAuthorization } from '../../core/authorization.js';
+import { withDefenses } from '../../core/defense.js';
+import type { Defense } from '../../core/defense.js';
 import type { Oracle } from '../../core/oracle.js';
 import { planScan, runScan } from '../../core/runner.js';
-import type { Attempt } from '../../core/runner.js';
+import type { Attempt, ScanResult } from '../../core/runner.js';
 import type { TargetAdapter } from '../../core/target.js';
 import { resolveModel } from '../../llm/resolve.js';
 import { createOracleRegistry } from '../../oracles/index.js';
 import { runFalsePositiveSuite } from '../../oracles/false-positive.js';
+import { compareDefenses } from '../../report/defense-comparison.js';
+import type { DefenseComparison } from '../../report/defense-comparison.js';
 import { renderHtml } from '../../report/html.js';
 import { renderMarkdown } from '../../report/markdown.js';
 import { scoreScan } from '../../report/scoring.js';
 import type { ScanReport } from '../../report/scoring.js';
 import { runUtilitySuite } from '../../report/utility.js';
-import { scenarioAttempts } from '../../scenarios/index.js';
+import type { UtilityOptions, UtilityReport } from '../../report/utility.js';
+import { scenarioAttempts, scenarioComparisonSource } from '../../scenarios/index.js';
 import { CliError } from '../args.js';
 import type { ScanArgs } from '../args.js';
 import { diffReports, loadBaseline, renderDiff } from '../baseline.js';
@@ -45,8 +50,8 @@ import { humanIo } from '../io.js';
 import type { Io } from '../io.js';
 import { canonicalJson } from '../json.js';
 import { evaluatePolicy } from '../policy.js';
-import { selectModules, surfaceFilter } from '../select.js';
-import { renderScanSummary } from '../summary.js';
+import { selectDefenses, selectModules, surfaceFilter } from '../select.js';
+import { renderDefenseComparison, renderScanSummary } from '../summary.js';
 import { loadTarget } from '../load-target.js';
 
 /** Everything the run needs about "what am I scanning", resolved once. */
@@ -97,6 +102,7 @@ function scanOptions(args: ScanArgs, resolved: ResolvedTarget, io: Io) {
     ...(resolved.canary !== undefined ? { canary: resolved.canary } : {}),
     ...(args.maxPayloads !== undefined ? { maxPayloads: args.maxPayloads } : {}),
     ...(filter !== undefined ? { payloadFilter: filter } : {}),
+    trials: args.trials,
     concurrency: args.concurrency,
     ...(resolved.createTarget !== undefined ? { createTarget: resolved.createTarget } : {}),
     retry: {
@@ -108,14 +114,40 @@ function scanOptions(args: ScanArgs, resolved: ResolvedTarget, io: Io) {
   };
 }
 
-async function dryRun(args: ScanArgs, resolved: ResolvedTarget, io: Io): Promise<number> {
+async function dryRun(
+  args: ScanArgs,
+  resolved: ResolvedTarget,
+  defenses: readonly Defense[],
+  io: Io,
+): Promise<number> {
   const payloads = await planScan(scanOptions(args, resolved, io));
   if (args.json) {
-    io.out(canonicalJson({ seed: args.seed, target: resolved.target.name, payloads }).trimEnd());
+    io.out(
+      canonicalJson({
+        seed: args.seed,
+        target: resolved.target.name,
+        trials: args.trials,
+        defenses: defenses.map((d) => d.id),
+        payloads,
+      }).trimEnd(),
+    );
     return EXIT_OK;
   }
   io.out(`coax scan --dry-run — target: ${resolved.target.name}  seed: ${args.seed}`);
-  io.out(`  ${payloads.length} payload(s) would be sent; the target is not contacted.\n`);
+  const sends = payloads.length * args.trials;
+  io.out(
+    `  ${payloads.length} payload(s) would be sent${args.trials > 1 ? ` x ${args.trials} trials = ${sends} sends` : ''}; ` +
+      'the target is not contacted.',
+  );
+  if (defenses.length > 0) {
+    // Defenses do not change WHAT is sent, only what survives — say so rather
+    // than letting a --dry-run --defense run look like it previewed the stack.
+    io.out(
+      `  defenses (${defenses.map((d) => d.id).join(', ')}) filter delivery, not generation: ` +
+        'the payload set is the same.',
+    );
+  }
+  io.out('');
   const idWidth = Math.max(...payloads.map((p) => p.id.length), 10);
   const famWidth = Math.max(...payloads.map((p) => p.family.length), 6);
   for (const p of payloads) {
@@ -131,6 +163,7 @@ async function dryRun(args: ScanArgs, resolved: ResolvedTarget, io: Io): Promise
 async function adaptiveRun(
   args: ScanArgs,
   resolved: ResolvedTarget,
+  target: TargetAdapter,
   oracles: readonly Oracle[],
 ): Promise<Attempt[]> {
   if (args.goal === undefined) throw new CliError('--adaptive requires --goal.');
@@ -142,9 +175,9 @@ async function adaptiveRun(
         'to run the adaptive loop.',
     );
   }
-  const tools = resolved.target.describeTools ? await resolved.target.describeTools() : [];
+  const tools = target.describeTools ? await target.describeTools() : [];
   const result = await runAdaptive({
-    target: resolved.target,
+    target,
     oracles,
     goal: args.goal,
     ...(resolved.canary !== undefined ? { canary: resolved.canary } : {}),
@@ -183,32 +216,79 @@ export async function runScanCommand(args: ScanArgs, io: Io): Promise<number> {
     return EXIT_UNAUTHORIZED;
   }
 
-  if (args.dryRun) return dryRun(args, resolved, io);
+  // Resolved before the dry-run branch so a typo in --defense is caught by the
+  // cheapest command, not only by the expensive one.
+  const scanTools = resolved.target.describeTools ? await resolved.target.describeTools() : [];
+  const defenses: Defense[] =
+    args.defense !== undefined
+      ? selectDefenses(args.defense, {
+          ...(resolved.canary !== undefined ? { canary: resolved.canary } : {}),
+          forbiddenTools: scanTools.filter((t) => t.forbidden).map((t) => t.name),
+        })
+      : [];
+
+  if (args.dryRun) return dryRun(args, resolved, defenses, io);
 
   const options = scanOptions(args, resolved, human);
   const oracles = options.oracles;
-  const result = await runScan(options);
 
   // Measure utility on a PRISTINE target (a fresh mock, or the user's module) so
   // any state the scan left behind can't skew the benign/under-attack numbers.
-  const utilityTarget = resolved.userSupplied ? resolved.target : createMockAgent();
-  const utilTools = utilityTarget.describeTools ? await utilityTarget.describeTools() : [];
+  const makeUtilityTarget = (): TargetAdapter =>
+    resolved.userSupplied ? resolved.target : createMockAgent();
+  const utilityProbe = makeUtilityTarget();
+  const utilTools = utilityProbe.describeTools ? await utilityProbe.describeTools() : [];
   const utilForbidden = utilTools.filter((t) => t.forbidden).map((t) => t.name);
   const canaryOpt = resolved.canary !== undefined ? { canary: resolved.canary } : {};
+  const utilityOpts: UtilityOptions = { ...canaryOpt, forbiddenTools: utilForbidden };
+  // Multi-step scenarios run against their own built-in vulnerable targets, so
+  // they only apply to the default mock.
+  const withScenarios = args.scenarios && !resolved.userSupplied;
+  const scenarioOpts = { oracles, seed: args.seed, ...canaryOpt };
 
-  // Scenarios, utility and the false-positive suite are independent of one
-  // another (the scan result is already computed), so overlap them.
-  const [scenAttempts, utility, fp, adaptive] = await Promise.all([
-    // Multi-step scenarios run against their own built-in vulnerable targets, so
-    // they only apply to the default mock.
-    args.scenarios && !resolved.userSupplied
-      ? scenarioAttempts({ oracles, seed: args.seed, ...canaryOpt })
-      : Promise.resolve([]),
-    args.utility
-      ? runUtilitySuite(utilityTarget, oracles, { ...canaryOpt, forbiddenTools: utilForbidden })
-      : Promise.resolve(undefined),
+  let result: ScanResult;
+  let scenAttempts: Attempt[];
+  let utility: UtilityReport | undefined;
+  let comparison: DefenseComparison | undefined;
+  let attackedTarget = resolved.target;
+
+  if (defenses.length > 0) {
+    // With controls in place the interesting number is the DELTA, so the suite
+    // runs twice from one seed and the report carries both columns. The defended
+    // run is the one that becomes the report: it describes the system as
+    // configured, and the thresholds gate it.
+    const compared = await compareDefenses({
+      ...options,
+      defenses,
+      ...(withScenarios ? { extraAttempts: scenarioComparisonSource(scenarioOpts) } : {}),
+      utility: args.utility ? utilityOpts : false,
+      utilityTarget: makeUtilityTarget,
+    });
+    result = compared.defended;
+    scenAttempts = compared.defendedExtra;
+    utility = compared.comparison.utility?.defended;
+    comparison = compared.comparison;
+    attackedTarget = withDefenses(resolved.target, defenses);
+  } else {
+    result = await runScan(options);
+    // Scenarios and the utility suite are independent of one another (the scan
+    // result is already computed), so overlap them.
+    const [scen, util] = await Promise.all([
+      withScenarios ? scenarioAttempts(scenarioOpts) : Promise.resolve([]),
+      args.utility
+        ? runUtilitySuite(makeUtilityTarget(), oracles, utilityOpts)
+        : Promise.resolve(undefined),
+    ]);
+    scenAttempts = scen;
+    utility = util;
+  }
+
+  const [fp, adaptive] = await Promise.all([
     args.fp ? runFalsePositiveSuite(oracles, canaryOpt) : Promise.resolve(undefined),
-    args.adaptive ? adaptiveRun(args, resolved, oracles) : Promise.resolve([]),
+    // The adaptive loop calls a live model, so it cannot be replayed identically
+    // on both sides of a comparison: it attacks the system as configured
+    // (defended, when defenses are on) and lands in that column only.
+    args.adaptive ? adaptiveRun(args, resolved, attackedTarget, oracles) : Promise.resolve([]),
   ]);
 
   // Payload-id order, never completion order: the report must be identical
@@ -221,6 +301,7 @@ export async function runScanCommand(args: ScanArgs, io: Io): Promise<number> {
     {
       ...(fp !== undefined ? { falsePositive: fp } : {}),
       ...(utility !== undefined ? { utility } : {}),
+      ...(comparison !== undefined ? { defense: comparison } : {}),
     },
   );
 
@@ -233,6 +314,7 @@ export async function runScanCommand(args: ScanArgs, io: Io): Promise<number> {
     io.out(canonicalJson(report).trimEnd());
   } else {
     renderScanSummary(report, human);
+    if (report.defense) renderDefenseComparison(report.defense, human);
   }
 
   if (diff) {
@@ -252,6 +334,7 @@ export async function runScanCommand(args: ScanArgs, io: Io): Promise<number> {
       failOnRegression: args.failOnRegression,
     },
     diff,
+    { defended: comparison !== undefined },
   );
   human.out(`\n${verdict.line}`);
   return verdict.exitCode;

@@ -12,6 +12,7 @@
  */
 import { ADAPTER_KINDS } from '../../adapters/index.js';
 import { createAttackRegistry } from '../../attacks/index.js';
+import { createDefenseRegistry } from '../../defenses/index.js';
 import { createOracleRegistry } from '../../oracles/index.js';
 import { BUILTIN_SCENARIOS } from '../../scenarios/index.js';
 import { EXIT_OK } from '../exit-codes.js';
@@ -63,11 +64,17 @@ function adapterRows(): Row[] {
 }
 
 /**
- * Defenses are registered by the defense layer. Until that ships, the section
- * exists and reports honestly rather than pretending the concept doesn't.
+ * Defenses carry their LIMITATIONS into the listing, not just a description:
+ * COAX measures controls, it does not market them, and the first question about
+ * a mitigation is what it fails to stop.
  */
 function defenseRows(): Row[] {
-  return [];
+  return createDefenseRegistry()
+    .list()
+    .map((d) => ({
+      id: d.id,
+      detail: `${d.description} — does NOT stop: ${d.limitations}`,
+    }));
 }
 
 function sections(kind: ListKind): Section[] {
@@ -78,7 +85,7 @@ function sections(kind: ListKind): Section[] {
     { kind: 'adapters', title: 'target adapters', rows: adapterRows() },
     {
       kind: 'defenses',
-      title: 'defenses',
+      title: 'defenses (--defense <ids|all>)',
       rows: defenseRows(),
       emptyNote: 'none registered in this build',
     },

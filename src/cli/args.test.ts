@@ -102,6 +102,19 @@ describe('parseArgs — errors', () => {
     expect(() => parseArgs(['scan', '--surface', 'telepathy'])).toThrow(/--surface/);
   });
 
+  it('validates the defense and trials flags', () => {
+    expect(scan(['scan', '--defense', 'all']).defense).toEqual(['all']);
+    expect(scan(['scan', '--defense', 'tool-guard,spotlighting']).defense).toEqual([
+      'tool-guard',
+      'spotlighting',
+    ]);
+    expect(scan(['scan']).trials).toBe(1);
+    expect(scan(['scan', '--trials', '5']).trials).toBe(5);
+    expect(() => parseArgs(['scan', '--trials', '0'])).toThrow(/--trials/);
+    expect(() => parseArgs(['scan', '--trials', '2.5'])).toThrow(/--trials/);
+    expect(() => parseArgs(['scan', '--defense'])).toThrow(/--defense expects a value/);
+  });
+
   it('rejects an unknown flag and lists what is available', () => {
     expect(() => parseArgs(['scan', '--nope'])).toThrow(/unknown flag "--nope".*--target/s);
   });
@@ -155,9 +168,17 @@ describe('renderHelp', () => {
       '--max-asr',
       '--max-weighted-asr',
       '--fail-on-regression',
+      '--defense',
+      '--trials',
     ]) {
       expect(help).toContain(flag);
     }
+  });
+
+  it('states which numbers the thresholds gate under --defense', () => {
+    const help = renderHelp();
+    expect(help).toContain('the report describes the DEFENDED system');
+    expect(help).toContain('Gate on what you ship.');
   });
 
   it('documents the exit-code contract', () => {

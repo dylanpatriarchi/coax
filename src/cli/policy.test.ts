@@ -88,6 +88,15 @@ describe('evaluatePolicy', () => {
     expect(verdict.line.startsWith('verdict: FAIL — ')).toBe(true);
   });
 
+  it('names the defended scan when defenses were active, so the gate is unambiguous', () => {
+    const pass = evaluatePolicy(report(), { maxAsr: 0.9 }, undefined, { defended: true });
+    expect(pass.line).toContain('verdict: PASS (defended scan)');
+    const fail = evaluatePolicy(report(), { maxAsr: 0.1 }, undefined, { defended: true });
+    expect(fail.line).toContain('verdict: FAIL (defended scan)');
+    // Undefended runs say nothing extra.
+    expect(evaluatePolicy(report(), { maxAsr: 0.9 }).line).not.toContain('defended');
+  });
+
   it('summarises the run on the passing line too', () => {
     const verdict = evaluatePolicy(report(), { maxAsr: 0.9 });
     expect(verdict.line).toContain('ASR 20% (2/10)');

@@ -36,13 +36,15 @@
  *    Running several in parallel on ONE adapter would interleave them, so
  *    concurrency > 1 requires `createTarget` to hand each worker its own
  *    adapter instance; without it the runner stays sequential rather than
- *    silently producing corrupted evidence.
+ *    silently producing corrupted evidence. A worker is also wrapped in lane
+ *    0's defense stack when the factory hands back a bare adapter, so every
+ *    lane measures the same system.
  */
 import { generatePayloads } from '../attacks/index.js';
 import { supportsInjection } from './target.js';
 import type { AttackModule, AttackPayload } from './attack.js';
 import type { DefenseTrace } from './defense.js';
-import { isDefendedTarget } from './defense.js';
+import { isDefendedTarget, withDefenses } from './defense.js';
 import type { Oracle, OracleVerdict } from './oracle.js';
 import { makeRng } from './rng.js';
 import { withRetry } from './retry.js';
@@ -291,8 +293,16 @@ export async function runScan(opts: ScanOptions): Promise<ScanResult> {
   const lanes = opts.createTarget ? Math.min(requested, payloads.length || 1) : 1;
   const workers: TargetAdapter[] = [opts.target];
   const createTarget = opts.createTarget;
+  // Every lane must be the SAME system under test as lane 0. When lane 0 is
+  // defended and the factory yields a bare adapter — which is exactly what
+  // happens when `compareDefenses` re-runs a scan behind a stack — the worker is
+  // wrapped in the identical defenses, or half the scan would silently measure
+  // an undefended target.
+  const lane0 = opts.target;
+  const matchLane0 = (t: TargetAdapter): TargetAdapter =>
+    isDefendedTarget(lane0) && !isDefendedTarget(t) ? withDefenses(t, lane0.defenses) : t;
   for (let i = 1; i < lanes && createTarget; i += 1) {
-    workers.push(await createTarget());
+    workers.push(matchLane0(await createTarget()));
   }
 
   // Drop anything a previous caller left in a defended target's event log, so

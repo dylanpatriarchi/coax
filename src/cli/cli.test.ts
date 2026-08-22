@@ -88,7 +88,8 @@ describe('coax list', () => {
     expect(out).toContain('oracles (id / confidence)');
     expect(out).toContain('multi-step scenarios');
     expect(out).toContain('target adapters');
-    expect(out).toContain('defenses (0):');
+    expect(out).toContain('defenses (--defense <ids|all>) (4):');
+    expect(out).toContain('spotlighting');
   });
 
   it('narrows to one kind', async () => {
@@ -130,6 +131,10 @@ describe('coax scan --dry-run', () => {
     expect(parsed.payloads.every((p) => p.surface === 'indirect')).toBe(true);
     expect(parsed.payloads.every((p) => p.moduleId === 'tool-abuse')).toBe(true);
 
+    const dryDefended = await cli('scan', '--dry-run', '--only', 'tool-abuse', '--defense', 'all');
+    expect(dryDefended.code).toBe(EXIT_OK);
+    expect(dryDefended.out).toContain('filter delivery, not generation');
+
     const capped = JSON.parse(
       (await cli('scan', '--dry-run', '--only', 'tool-abuse', '--max-payloads', '2', '--json')).out,
     ) as { payloads: unknown[] };
@@ -157,6 +162,106 @@ describe('the responsible-use gate', () => {
       '--i-am-authorized',
     );
     expect(code).toBe(EXIT_OK);
+  });
+});
+
+describe('coax scan --defense', () => {
+  it('reports baseline vs. defended, and gates on the defended numbers', async () => {
+    const bare = await cli('scan', ...FAST, '--only', 'tool-abuse', '--fail-on-severity', 'high');
+    expect(bare.code).toBe(EXIT_POLICY);
+
+    const defended = await cli(
+      'scan',
+      '--no-scenarios',
+      '--no-fp',
+      '--only',
+      'tool-abuse',
+      '--defense',
+      'all',
+      '--fail-on-severity',
+      'high',
+    );
+    expect(defended.code).toBe(EXIT_OK);
+    expect(defended.out).toContain('defenses: spotlighting, input-screening');
+    expect(defended.out).toContain('family              baseline  defended  reduction  residual');
+    expect(defended.out).toContain('stack activity:');
+    // The cost of the control is printed next to its benefit, never alone.
+    expect(defended.out).toContain('utility             baseline  defended');
+    // And the verdict says which column it read.
+    expect(defended.out).toContain('verdict: PASS (defended scan)');
+  });
+
+  it('carries the comparison into report.json', async () => {
+    const { out } = await cli(
+      'scan',
+      ...FAST,
+      '--only',
+      'tool-abuse',
+      '--defense',
+      'output-filtering,tool-guard',
+      '--json',
+    );
+    const report = JSON.parse(out) as {
+      meta: { target: string };
+      defense: {
+        defenses: { id: string; limitations: string }[];
+        overall: { baseline: { rate: number }; defended: { rate: number }; residual: number };
+        byFamily: { key: string; reduction: number }[];
+      };
+    };
+    expect(report.meta.target).toContain('+defended');
+    expect(report.defense.defenses.map((d) => d.id)).toEqual(['output-filtering', 'tool-guard']);
+    expect(report.defense.defenses.every((d) => d.limitations.length > 0)).toBe(true);
+    expect(report.defense.overall.baseline.rate).toBeGreaterThan(report.defense.overall.defended.rate);
+    expect(report.defense.byFamily[0]?.reduction).toBeGreaterThan(0);
+  });
+
+  it('fails fast on an unknown defense id — even on the cheap dry-run path', async () => {
+    const dry = await cli('scan', '--dry-run', '--defense', 'seatbelt');
+    expect(dry.code).toBe(EXIT_ERROR);
+    expect(dry.err).toContain('unknown defense "seatbelt"');
+
+    const { code, err } = await cli('scan', ...FAST, '--defense', 'seatbelt');
+    expect(code).toBe(EXIT_ERROR);
+    expect(err).toMatch(/unknown defense "seatbelt".*Available: spotlighting/s);
+  });
+});
+
+describe('coax scan --trials', () => {
+  it('reports a confidence interval beside the point estimate', async () => {
+    const { code, out } = await cli('scan', ...FAST, '--only', 'obfuscation', '--trials', '3');
+    expect(code).toBe(EXIT_OK);
+    expect(out).toContain('trials: 3');
+    expect(out).toMatch(/ASR \(95% CI\)/);
+    expect(out).toMatch(/\[\d+%, \d+%\]/);
+  });
+
+  it('carries hits/trials and the interval into report.json', async () => {
+    const { out } = await cli(
+      'scan',
+      ...FAST,
+      '--only',
+      'obfuscation',
+      '--trials',
+      '4',
+      '--json',
+    );
+    const report = JSON.parse(out) as {
+      meta: { trials: number };
+      overall: { total: number; lo: number; hi: number; asr: number };
+      byFamily: { lo: number; hi: number }[];
+    };
+    expect(report.meta.trials).toBe(4);
+    expect(report.overall.total).toBe(20);
+    expect(report.overall.lo).toBeLessThanOrEqual(report.overall.asr);
+    expect(report.overall.hi).toBeGreaterThanOrEqual(report.overall.asr);
+    expect(report.byFamily[0]?.hi).toBeGreaterThan(0);
+  });
+
+  it('single-trial output is unchanged — no interval, no trials header', async () => {
+    const { out } = await cli('scan', ...FAST, '--only', 'obfuscation');
+    expect(out).not.toContain('trials:');
+    expect(out).not.toMatch(/\[\d+%, \d+%\]/);
   });
 });
 
@@ -243,6 +348,27 @@ describe('throughput', () => {
     const parallel = await cli(...args, '--concurrency', '8');
     expect(parallel.code).toBe(sequential.code);
     expect(parallel.out).toBe(sequential.out);
+  });
+
+  it('stays identical with repeated trials and a defense stack in place', async () => {
+    const args = [
+      'scan',
+      ...FAST,
+      '--only',
+      'tool-abuse,jailbreak',
+      '--trials',
+      '3',
+      '--defense',
+      'all',
+      '--json',
+    ];
+    const sequential = await cli(...args, '--concurrency', '1');
+    const parallel = await cli(...args, '--concurrency', '8');
+    expect(parallel.out).toBe(sequential.out);
+    // ...and the defended workers really were defended: a lane that skipped the
+    // stack would show a higher defended rate than lane 0 alone.
+    const report = JSON.parse(parallel.out) as { defense: { overall: { defended: { rate: number } } } };
+    expect(report.defense.overall.defended.rate).toBe(0);
   });
 });
 

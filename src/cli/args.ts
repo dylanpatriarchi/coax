@@ -138,6 +138,24 @@ const FLAGS = {
     schema: z.boolean().default(true),
   },
 
+  // --- scan: controls & statistics -----------------------------------------
+  defense: {
+    flag: 'defense',
+    kind: 'list',
+    commands: ['scan'],
+    placeholder: 'IDS',
+    describe: 'run behind these defenses ("all" for the default stack); gates the DEFENDED numbers',
+    schema: z.array(z.string().min(1)).optional(),
+  },
+  trials: {
+    flag: 'trials',
+    kind: 'number',
+    commands: ['scan'],
+    placeholder: 'N',
+    describe: 'send each payload N times; the report carries 95% intervals',
+    schema: z.number().int().min(1).max(100).default(1),
+  },
+
   // --- scan: adaptive attacker ---------------------------------------------
   adaptive: {
     flag: 'adaptive',
@@ -574,6 +592,10 @@ export function renderHelp(topic?: CommandName): string {
   out.push('');
   out.push('Without --target, scans the built-in vulnerable mock. A non-localhost --target');
   out.push('endpoint requires --i-am-authorized (or COAX_I_AM_AUTHORIZED=true).');
+  out.push('');
+  out.push('With --defense, the report describes the DEFENDED system: findings, ASR and every');
+  out.push('threshold above are the defended numbers, and the undefended baseline is reported');
+  out.push('beside them as context. Gate on what you ship.');
   out.push('Only test systems you own or are authorized to test.');
   return out.join('\n');
 }

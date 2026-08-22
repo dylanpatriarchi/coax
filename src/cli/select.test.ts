@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_ATTACKS } from '../attacks/index.js';
-import { selectModules, surfaceFilter } from './select.js';
+import { defenseIds, selectDefenses, selectModules, surfaceFilter } from './select.js';
 import type { AttackPayload } from '../core/attack.js';
 
 const ids = (modules: readonly { id: string }[]): string[] => modules.map((m) => m.id);
@@ -80,5 +80,42 @@ describe('surfaceFilter', () => {
     expect(keep?.(payload('indirect'))).toBe(true);
     expect(keep?.(payload('tool'))).toBe(true);
     expect(keep?.(payload('direct'))).toBe(false);
+  });
+});
+
+describe('selectDefenses', () => {
+  it('"all" (and an empty selection) is the whole wired stack, in stack order', () => {
+    expect(selectDefenses(['all']).map((d) => d.id)).toEqual([
+      'spotlighting',
+      'input-screening',
+      'output-filtering',
+      'tool-guard',
+    ]);
+    expect(selectDefenses([]).map((d) => d.id)).toEqual(selectDefenses(['all']).map((d) => d.id));
+  });
+
+  it('returns the canonical order regardless of the order the ids were typed', () => {
+    expect(selectDefenses(['tool-guard', 'spotlighting']).map((d) => d.id)).toEqual([
+      'spotlighting',
+      'tool-guard',
+    ]);
+  });
+
+  it('wires the stack to this scan (the filter can only redact what it was told)', () => {
+    const [filter] = selectDefenses(['output-filtering'], { canary: 'CANARY-xyz' });
+    const outcome = filter?.screenOutput?.({ output: 'the secret is CANARY-xyz', toolCalls: [] });
+    expect(outcome).toBeDefined();
+    const value = (outcome as { value: { output: string } }).value;
+    expect(value.output).not.toContain('CANARY-xyz');
+  });
+
+  it('fails fast on an unknown id, listing what is available', () => {
+    expect(() => selectDefenses(['seatbelt'])).toThrow(
+      /unknown defense "seatbelt".*Available: spotlighting.*"all"/s,
+    );
+  });
+
+  it('exposes the registry ids for help and errors', () => {
+    expect(defenseIds()).toContain('input-screening');
   });
 });

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createMockAgent } from '../adapters/mock.js';
 import { BUILTIN_ATTACKS } from '../attacks/index.js';
 import { BUILTIN_ORACLES } from '../oracles/index.js';
+import { createDefaultDefenses } from '../defenses/index.js';
+import { withDefenses } from './defense.js';
 import { planScan, runScan } from './runner.js';
 import type { AgentInput, AgentResponse, TargetAdapter } from './target.js';
 
@@ -178,5 +180,49 @@ describe('runScan — retries', () => {
         retry: { retries: 3, sleep: async () => {} },
       }),
     ).rejects.toThrow('adapter misconfigured');
+  });
+});
+
+describe('runScan — concurrency with trials and defenses', () => {
+  const base = {
+    modules: BUILTIN_ATTACKS,
+    oracles: BUILTIN_ORACLES,
+    seed: 42,
+    canary: CANARY,
+  };
+
+  it('repeated trials are identical at any concurrency', async () => {
+    const opts = { ...base, trials: 3 };
+    const sequential = await runScan({ ...opts, target: createMockAgent() });
+    const parallel = await runScan({
+      ...opts,
+      target: createMockAgent(),
+      concurrency: 8,
+      createTarget: () => createMockAgent(),
+    });
+    expect(parallel.attempts.map((a) => [a.payload.id, a.hits, a.trials])).toEqual(
+      sequential.attempts.map((a) => [a.payload.id, a.hits, a.trials]),
+    );
+  });
+
+  it("wraps every worker in lane 0's defenses, so no lane scans a bare target", async () => {
+    const defenses = createDefaultDefenses({ canary: CANARY, forbiddenTools: ['send_email'] });
+    const opts = { ...base, modules: BUILTIN_ATTACKS.slice(0, 5) };
+    const sequential = await runScan({
+      ...opts,
+      target: withDefenses(createMockAgent(), defenses),
+    });
+    const parallel = await runScan({
+      ...opts,
+      target: withDefenses(createMockAgent(), defenses),
+      concurrency: 8,
+      // A bare factory, exactly as `compareDefenses` supplies it.
+      createTarget: () => createMockAgent(),
+    });
+    expect(parallel.attempts.map((a) => [a.payload.id, a.success, a.blocked])).toEqual(
+      sequential.attempts.map((a) => [a.payload.id, a.success, a.blocked]),
+    );
+    // The stack really was in front of every lane.
+    expect(parallel.attempts.some((a) => a.blocked > 0)).toBe(true);
   });
 });
