@@ -16,6 +16,8 @@ const HARDENED = {
     executeCode: false,
     runawayLoops: false,
     persistMemory: false,
+    assumeIdentity: false,
+    manufactureTrust: false,
   },
 };
 

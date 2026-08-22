@@ -71,6 +71,16 @@ export const REMEDIATIONS: Record<AttackFamily, string> = {
   crescendo:
     'Evaluate safety over the whole conversation, not per-turn; detect gradual escalation and ' +
     'topic drift, and reset trust when a session steers toward disallowed goals.',
+  'trust-exploitation':
+    'Forbid the agent from asserting credentials, certifications or authority it does not hold, ' +
+    'and from issuing absolute safety guarantees. Require calibrated, sourced statements for ' +
+    'risk claims, and surface the agent\'s actual identity and confidence in any UI where a human ' +
+    'approves a high-impact action so consent is informed rather than coaxed.',
+  'identity-abuse':
+    'Bind every action to the CALLING user\'s identity, never the agent\'s: propagate the caller ' +
+    'principal to each tool invocation, authorize server-side against that principal, and refuse ' +
+    'requests that ask the agent to run as another role. Issue short-lived, single-use, ' +
+    'audience-scoped delegation tokens so one approval cannot be replayed for a later action.',
 };
 
 export interface CategoryScore {

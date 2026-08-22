@@ -51,6 +51,8 @@ describe('runScan', () => {
         executeCode: false,
         runawayLoops: false,
         persistMemory: false,
+        assumeIdentity: false,
+        manufactureTrust: false,
       },
     });
     const result = await runScan({

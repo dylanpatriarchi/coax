@@ -17,6 +17,8 @@ import { codeExecutionModule } from './code-execution.js';
 import { manyShotJailbreakModule } from './many-shot-jailbreak.js';
 import { skeletonKeyModule } from './skeleton-key.js';
 import { policyPuppetryModule } from './policy-puppetry.js';
+import { trustExploitationModule } from './trust-exploitation.js';
+import { identityAbuseModule } from './identity-abuse.js';
 
 export const BUILTIN_ATTACKS: readonly AttackModule[] = [
   directOverrideModule,
@@ -29,6 +31,8 @@ export const BUILTIN_ATTACKS: readonly AttackModule[] = [
   supplyChainModule,
   unboundedConsumptionModule,
   codeExecutionModule,
+  trustExploitationModule,
+  identityAbuseModule,
   // Frontier (2024-2025 published) jailbreak/override techniques.
   manyShotJailbreakModule,
   skeletonKeyModule,
@@ -60,6 +64,8 @@ export {
   supplyChainModule,
   unboundedConsumptionModule,
   codeExecutionModule,
+  trustExploitationModule,
+  identityAbuseModule,
   manyShotJailbreakModule,
   skeletonKeyModule,
   policyPuppetryModule,
