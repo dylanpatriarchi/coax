@@ -23,6 +23,7 @@ describe('attack registry', () => {
       'code-execution',
       'trust-exploitation',
       'identity-abuse',
+      'rag-poisoning',
       'many-shot-jailbreak',
       'skeleton-key',
       'policy-puppetry',

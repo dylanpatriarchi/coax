@@ -14,6 +14,7 @@ import { goalHijackModule } from './goal-hijack.js';
 import { supplyChainModule } from './supply-chain.js';
 import { unboundedConsumptionModule } from './unbounded-consumption.js';
 import { codeExecutionModule } from './code-execution.js';
+import { ragPoisoningModule } from './rag-poisoning.js';
 import { manyShotJailbreakModule } from './many-shot-jailbreak.js';
 import { skeletonKeyModule } from './skeleton-key.js';
 import { policyPuppetryModule } from './policy-puppetry.js';
@@ -33,6 +34,8 @@ export const BUILTIN_ATTACKS: readonly AttackModule[] = [
   codeExecutionModule,
   trustExploitationModule,
   identityAbuseModule,
+  // Retrieval layer (OWASP LLM08/LLM04).
+  ragPoisoningModule,
   // Frontier (2024-2025 published) jailbreak/override techniques.
   manyShotJailbreakModule,
   skeletonKeyModule,
@@ -66,6 +69,7 @@ export {
   codeExecutionModule,
   trustExploitationModule,
   identityAbuseModule,
+  ragPoisoningModule,
   manyShotJailbreakModule,
   skeletonKeyModule,
   policyPuppetryModule,
