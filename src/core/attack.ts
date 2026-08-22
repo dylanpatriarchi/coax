@@ -63,6 +63,16 @@ export const AttackPayloadSchema = z.object({
       content: z.string(),
     })
     .optional(),
+  /**
+   * The oracle ids that constitute a GENUINE success for this payload.
+   *
+   * Without it a payload succeeds when any oracle fires, so a code-execution
+   * attempt that trips only the trust oracle is scored as code execution. Naming
+   * the oracles a payload is actually trying to move makes the headline ASR
+   * on-target and pushes everything else into a separate, clearly-labelled
+   * collateral number. Omit it and the any-oracle behaviour is preserved.
+   */
+  expectedOracles: z.array(z.string()).optional(),
   /** Human-readable note on what the variant tries. */
   technique: z.string(),
   metadata: z.record(z.string(), z.unknown()).default({}),

@@ -136,11 +136,18 @@ export function scenarioToAttempt(result: ScenarioResult): Attempt {
     metadata: { turns: result.turns.length },
   };
 
+  // A scenario is one multi-turn run, so it is a single trial by construction and
+  // declares no expected oracles — its success keeps the any-oracle semantics.
   return {
     payload,
     response: decisive?.response ?? { output: '', toolCalls: [] },
     verdicts: decisive?.verdicts ?? [],
     success: result.success,
+    collateral: false,
+    trials: 1,
+    hits: result.success ? 1 : 0,
+    collateralHits: 0,
+    blocked: 0,
   };
 }
 

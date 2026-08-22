@@ -4,9 +4,12 @@
  * footer timestamp. Theme-aware (respects the OS light/dark preference).
  */
 import type { ScanReport, Finding, CategoryScore, TaxonomyScore } from './scoring.js';
+import type { DefenseComparison } from './defense-comparison.js';
 import type { RenderOptions } from './markdown.js';
+import { formatInterval } from './statistics.js';
 
 const pct = (n: number): string => `${(n * 100).toFixed(0)}%`;
+const ci = (r: { lo: number; hi: number }): string => formatInterval(r);
 
 function esc(s: string): string {
   return s
@@ -25,7 +28,7 @@ function categoryRows(rows: CategoryScore[]): string {
   return rows
     .map(
       (r) =>
-        `<tr><td>${esc(r.key)}</td><td class="num">${bar(r.asr)}</td><td class="num">${r.hits}</td><td class="num">${r.total}</td></tr>`,
+        `<tr><td>${esc(r.key)}</td><td class="num">${bar(r.asr)}</td><td class="num ci">${ci(r)}</td><td class="num">${r.hits}</td><td class="num">${r.total}</td></tr>`,
     )
     .join('');
 }
@@ -34,9 +37,47 @@ function taxonomyRows(rows: TaxonomyScore[]): string {
   return rows
     .map(
       (r) =>
-        `<tr><td>${esc(r.label)}</td><td class="num">${bar(r.asr)}</td><td class="num">${r.hits}</td><td class="num">${r.total}</td></tr>`,
+        `<tr><td>${esc(r.label)}</td><td class="num">${bar(r.asr)}</td><td class="num ci">${ci(r)}</td><td class="num">${r.hits}</td><td class="num">${r.total}</td></tr>`,
     )
     .join('');
+}
+
+/** Baseline vs. defended. The residual column is the one to read. */
+function defenseBlock(d: DefenseComparison): string {
+  const rows = d.byFamily
+    .map(
+      (f) =>
+        `<tr><td>${esc(f.key)}</td><td class="num">${bar(f.baseline.rate)}</td>` +
+        `<td class="num">${bar(f.defended.rate)}</td><td class="num">${pct(f.reduction)}</td>` +
+        `<td class="num"><strong>${pct(f.residual)}</strong></td></tr>`,
+    )
+    .join('');
+  const controls = d.defenses
+    .map(
+      (c) =>
+        `<li><code>${esc(c.id)}</code> — ${esc(c.description)}` +
+        `<div class="note"><em>Does not stop:</em> ${esc(c.limitations)}</div></li>`,
+    )
+    .join('');
+  const utility = d.utility
+    ? `<p class="note">Benign utility ${pct(d.utility.baseline.benign.rate)} → ` +
+      `${pct(d.utility.defended.benign.rate)}; utility under attack ` +
+      `${pct(d.utility.baseline.underAttack.rate)} → ${pct(d.utility.defended.underAttack.rate)}. ` +
+      'A control that simply refuses everything collapses the benign column.</p>'
+    : '';
+  return `<h2>Defense effectiveness</h2>
+<div class="kpis">
+  <div class="kpi"><div class="v">${pct(d.overall.baseline.rate)}</div><div class="k">Baseline ASR</div></div>
+  <div class="kpi"><div class="v">${pct(d.overall.defended.rate)}</div><div class="k">Defended ASR</div></div>
+  <div class="kpi"><div class="v">${pct(d.overall.residual)}</div><div class="k">Residual risk</div></div>
+</div>
+<p class="note">${d.activity.blockedAttempts}/${d.activity.totalAttempts} attempts refused outright,
+${d.activity.quarantinedIngests} ingested spans quarantined, ${d.activity.rewrittenResponses} responses
+rewritten on the way out. Baseline ${ci(d.overall.baseline)}, defended ${ci(d.overall.defended)} at 95%.</p>
+<table><thead><tr><th>Family</th><th>Baseline ASR</th><th>Defended ASR</th><th>Reduction</th><th>Residual</th></tr></thead><tbody>${rows}</tbody></table>
+${utility}
+<p class="note">Controls measured, each with what it does <strong>not</strong> stop:</p>
+<ul class="controls">${controls}</ul>`;
 }
 
 function block(label: string, content: string): string {
@@ -64,6 +105,8 @@ function findingCard(f: Finding, index: number): string {
       <strong>Technique:</strong> ${esc(f.technique)}<br>
       <strong>Taxonomy:</strong> ${esc(f.taxonomy.join(', '))}<br>
       <strong>Detected by:</strong> ${oracles}
+      ${f.expectedOracles ? `<br><strong>On-target oracles:</strong> ${esc(f.expectedOracles.join(', '))}` : ''}
+      ${f.trials > 1 ? `<br><strong>Landed:</strong> ${f.hits}/${f.trials} trials` : ''}
     </p>
     ${inject}
     ${block('User message', f.message)}
@@ -99,6 +142,8 @@ th{font-size:.8rem;text-transform:uppercase;letter-spacing:.03em;color:var(--mut
 pre{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem;overflow-x:auto;white-space:pre-wrap;word-break:break-word;margin:.2rem 0}
 .remediation{background:rgba(59,91,219,.08);border-radius:8px;padding:.6rem .8rem;margin-top:.6rem}
 code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em}
+td.ci{color:var(--muted);font-size:.82rem}
+ul.controls{padding-left:1.1rem}ul.controls li{margin:.5rem 0}
 `;
 
 export function renderHtml(report: ScanReport, opts: RenderOptions = {}): string {
@@ -114,6 +159,14 @@ export function renderHtml(report: ScanReport, opts: RenderOptions = {}): string
         )
         .join('')}</tbody></table>`
     : '';
+
+  const defenseTable = report.defense ? defenseBlock(report.defense) : '';
+  const collateralNote =
+    report.overall.collateralHits > 0
+      ? `<p class="note">${report.overall.collateralHits} collateral oracle hit(s) ` +
+        `(${pct(report.overall.collateralRate)}): a trial fired an oracle the payload never claimed. ` +
+        'Reported here, never folded into ASR.</p>'
+      : '';
 
   const asiRows = report.byTaxonomy.filter((t) => t.scheme === 'owasp-asi');
   const asiTable =
@@ -160,15 +213,19 @@ export function renderHtml(report: ScanReport, opts: RenderOptions = {}): string
   <div class="kpi"><div class="v">${m.successCount}/${m.attackCount}</div><div class="k">Attacks landed</div></div>
   ${fpKpi}
 </div>
+<p class="note">Overall ASR ${pct(report.overall.asr)} ${ci(report.overall)} at 95% (Wilson), over
+${report.overall.total} trial(s) of ${m.attackCount} payload(s)${m.trials > 1 ? ` × ${m.trials} trials each` : ''}.</p>
+${collateralNote}
 <h2>ASR by attack family</h2>
-<table><thead><tr><th>Family</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${categoryRows(report.byFamily)}</tbody></table>
+<table><thead><tr><th>Family</th><th>ASR</th><th>95% CI</th><th>Hits</th><th>Trials</th></tr></thead><tbody>${categoryRows(report.byFamily)}</tbody></table>
 <h2>ASR by surface</h2>
-<table><thead><tr><th>Surface</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${categoryRows(report.bySurface)}</tbody></table>
+<table><thead><tr><th>Surface</th><th>ASR</th><th>95% CI</th><th>Hits</th><th>Trials</th></tr></thead><tbody>${categoryRows(report.bySurface)}</tbody></table>
 <h2>ASR by OWASP LLM Top 10 category</h2>
-<table><thead><tr><th>OWASP LLM category</th><th>ASR</th><th>Hits</th><th>Total</th></tr></thead><tbody>${taxonomyRows(report.byTaxonomy.filter((t) => t.scheme === 'owasp-llm'))}</tbody></table>
+<table><thead><tr><th>OWASP LLM category</th><th>ASR</th><th>95% CI</th><th>Hits</th><th>Trials</th></tr></thead><tbody>${taxonomyRows(report.byTaxonomy.filter((t) => t.scheme === 'owasp-llm'))}</tbody></table>
 ${asiTable}
 ${atlasTable}
 ${otherTable}
+${defenseTable}
 ${utilityBlock}
 ${fpTable}
 <h2>Findings</h2>
