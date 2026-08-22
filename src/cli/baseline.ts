@@ -94,7 +94,9 @@ export function loadBaseline(path: string): BaselineReport {
   try {
     raw = JSON.parse(readFileSync(path, 'utf8'));
   } catch (err) {
-    throw new Error(`--baseline: cannot read "${path}" — ${(err as Error).message}`);
+    throw new Error(`--baseline: cannot read "${path}" — ${(err as Error).message}`, {
+      cause: err,
+    });
   }
   const parsed = BaselineReportSchema.safeParse(raw);
   if (!parsed.success) {
