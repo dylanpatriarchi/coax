@@ -7,3 +7,6 @@ package-lock.json
 # Markdown is hand-wrapped (tables, ASCII report samples); Prettier reflows it.
 *.md
 
+
+# Agent worktrees — other checkouts, not this one.
+.claude/
