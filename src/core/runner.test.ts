@@ -53,6 +53,9 @@ describe('runScan', () => {
         persistMemory: false,
         assumeIdentity: false,
         manufactureTrust: false,
+        trustRetrievedChunks: false,
+        crossNamespaceRetrieval: false,
+        relayDirectives: false,
       },
     });
     const result = await runScan({

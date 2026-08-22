@@ -1,7 +1,8 @@
 /**
  * Scenario registry + a helper that runs the built-in multi-step scenarios and
  * converts them into `Attempt`s so they score and report alongside single-turn
- * attacks. Inter-agent scenarios get a multi-agent target; the rest use the mock.
+ * attacks. Multi-agent scenarios (inter-agent, rogue-agent) get the multi-agent
+ * target; the rest use the mock.
  */
 import { createMockAgent } from '../adapters/mock.js';
 import { createMultiAgentMock } from '../adapters/multi-agent.js';
@@ -15,11 +16,13 @@ import type { TargetAdapter } from '../core/target.js';
 import { crescendoScenario } from './crescendo.js';
 import { memoryPoisoningScenario } from './memory-poisoning.js';
 import { interAgentScenario } from './inter-agent.js';
+import { rogueAgentScenario } from './rogue-agent.js';
 
 export const BUILTIN_SCENARIOS: readonly Scenario[] = [
   crescendoScenario,
   memoryPoisoningScenario,
   interAgentScenario,
+  rogueAgentScenario,
 ];
 
 /** The mock family's forbidden tools — used to arm the tool-trace oracle. */
@@ -32,8 +35,11 @@ export interface RunScenariosOptions {
   model?: ChatModel;
 }
 
+/** Anything that spans more than one agent needs the multi-agent target. */
+const MULTI_AGENT_FAMILIES = new Set(['inter-agent', 'rogue-agent']);
+
 function targetFor(scenario: Scenario): TargetAdapter {
-  return scenario.family === 'inter-agent' ? createMultiAgentMock() : createMockAgent();
+  return MULTI_AGENT_FAMILIES.has(scenario.family) ? createMultiAgentMock() : createMockAgent();
 }
 
 export async function runBuiltinScenarios(
@@ -56,4 +62,4 @@ export async function scenarioAttempts(opts: RunScenariosOptions): Promise<Attem
   return results.map(scenarioToAttempt);
 }
 
-export { crescendoScenario, memoryPoisoningScenario, interAgentScenario };
+export { crescendoScenario, memoryPoisoningScenario, interAgentScenario, rogueAgentScenario };

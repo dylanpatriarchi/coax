@@ -81,6 +81,18 @@ export const REMEDIATIONS: Record<AttackFamily, string> = {
     'principal to each tool invocation, authorize server-side against that principal, and refuse ' +
     'requests that ask the agent to run as another role. Issue short-lived, single-use, ' +
     'audience-scoped delegation tokens so one approval cannot be replayed for a later action.',
+  'rag-poisoning':
+    'Isolate the vector store per tenant/namespace and enforce that scope at query time, not in ' +
+    'the prompt. Tag every chunk with provenance and an authority level, screen documents at ' +
+    'ingest and again at retrieval, and never let retrieved text act as instructions — cite it ' +
+    'as quoted data. Monitor the corpus for anomalous writes (duplicate, keyword-stuffed, or ' +
+    'high-similarity chunks) that indicate an attempt to win retrieval.',
+  'rogue-agent':
+    'Give every agent a cryptographically attested identity and authorize each message by that ' +
+    'identity, so a subordinate cannot issue instructions upward or impersonate a peer. Cap the ' +
+    'blast radius with per-agent least privilege and quotas, require human approval to change an ' +
+    "agent's standing objective, and ship a kill-switch that revokes an agent's credentials and " +
+    'purges its persisted goals across sessions.',
 };
 
 export interface CategoryScore {

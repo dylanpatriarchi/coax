@@ -31,6 +31,9 @@ export const AttackFamilySchema = z.enum([
   'crescendo',
   'trust-exploitation',
   'identity-abuse',
+  // Retrieval layer (LLM08/LLM04) and rogue agents (ASI10).
+  'rag-poisoning',
+  'rogue-agent',
 ]);
 export type AttackFamily = z.infer<typeof AttackFamilySchema>;
 
@@ -55,7 +58,7 @@ export const AttackPayloadSchema = z.object({
   /** For indirect attacks: content staged via `injectContent` before the message. */
   inject: z
     .object({
-      channel: z.enum(['web', 'document', 'tool_result', 'email']),
+      channel: z.enum(['web', 'document', 'tool_result', 'email', 'retrieval', 'memory']),
       source: z.string(),
       content: z.string(),
     })

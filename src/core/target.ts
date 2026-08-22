@@ -7,8 +7,9 @@
  *
  * The two capabilities that make this agent-aware (not just chat-aware) are:
  *   - `injectContent`: stage attacker-controlled content the agent will INGEST
- *     (a poisoned web page, document, tool result, or email). This is the
- *     channel for INDIRECT prompt injection, the core agent threat.
+ *     (a poisoned web page, document, tool result, email, retrieved chunk, or
+ *     stored memory). This is the channel for INDIRECT prompt injection, the
+ *     core agent threat.
  *   - `describeTools` + `toolCalls` in the response: so tool-abuse attacks can
  *     target real tools/arguments and oracles can inspect the call trace.
  */
@@ -41,14 +42,32 @@ export const TraceEventSchema = z.object({
 });
 export type TraceEvent = z.infer<typeof TraceEventSchema>;
 
-/** The channel through which indirect (ingested) content reaches the agent. */
-export const IngestChannelSchema = z.enum(['web', 'document', 'tool_result', 'email']);
+/**
+ * The channel through which indirect (ingested) content reaches the agent.
+ *
+ * `retrieval` and `memory` are the RETRIEVAL-LAYER channels: content that reaches
+ * the model because the agent's own vector store / memory store served it, not
+ * because a user pasted it. They are what make LLM08 (vector & embedding
+ * weaknesses) and ASI10 (a rogue agent persisting its objective) expressible.
+ */
+export const IngestChannelSchema = z.enum([
+  'web',
+  'document',
+  'tool_result',
+  'email',
+  'retrieval',
+  'memory',
+]);
 export type IngestChannel = z.infer<typeof IngestChannelSchema>;
 
 /** Attacker-controlled content the agent will read — the indirect-injection payload carrier. */
 export const InjectedContentSchema = z.object({
   channel: IngestChannelSchema,
-  source: z.string().describe('url / filename / sender the agent believes this came from'),
+  source: z
+    .string()
+    .describe(
+      'url / filename / sender / vector-store namespace the agent believes this came from',
+    ),
   content: z.string(),
 });
 export type InjectedContent = z.infer<typeof InjectedContentSchema>;

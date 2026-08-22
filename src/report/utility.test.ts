@@ -18,6 +18,9 @@ const HARDENED = {
     persistMemory: false,
     assumeIdentity: false,
     manufactureTrust: false,
+    trustRetrievedChunks: false,
+    crossNamespaceRetrieval: false,
+    relayDirectives: false,
   },
 };
 
