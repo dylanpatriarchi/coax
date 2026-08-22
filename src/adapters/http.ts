@@ -36,7 +36,9 @@ export interface HttpAdapterConfig {
 const DefaultResponseSchema = z.object({
   output: z.string(),
   toolCalls: z
-    .array(z.object({ id: z.string(), name: z.string(), arguments: z.record(z.string(), z.unknown()) }))
+    .array(
+      z.object({ id: z.string(), name: z.string(), arguments: z.record(z.string(), z.unknown()) }),
+    )
     .default([]),
 });
 

@@ -39,7 +39,9 @@ export class Registry<T extends Identified> {
   get(id: string): T {
     const item = this.items.get(id);
     if (!item) {
-      throw new Error(`${this.kind}: unknown id "${id}". Available: ${this.ids().join(', ') || '(none)'}`);
+      throw new Error(
+        `${this.kind}: unknown id "${id}". Available: ${this.ids().join(', ') || '(none)'}`,
+      );
     }
     return item;
   }

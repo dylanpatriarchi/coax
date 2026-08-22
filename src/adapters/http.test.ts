@@ -6,7 +6,10 @@ import { supportsInjection, supportsTools } from '../core/target.js';
 function fakeFetch(json: unknown, capture?: (url: string, body: unknown) => void): typeof fetch {
   return (async (url: string | URL | Request, init?: RequestInit) => {
     capture?.(String(url), init?.body ? JSON.parse(String(init.body)) : undefined);
-    return new Response(JSON.stringify(json), { status: 200, headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify(json), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
   }) as unknown as typeof fetch;
 }
 
@@ -26,7 +29,10 @@ describe('HttpAgent', () => {
   });
 
   it('feature-detects injection and tools', () => {
-    const agent = new HttpAgent({ url: 'http://x', tools: [{ name: 't', description: '', parameters: {}, forbidden: true }] });
+    const agent = new HttpAgent({
+      url: 'http://x',
+      tools: [{ name: 't', description: '', parameters: {}, forbidden: true }],
+    });
     expect(supportsInjection(agent)).toBe(true);
     expect(supportsTools(agent)).toBe(true);
   });
@@ -59,7 +65,10 @@ describe('HttpAgent', () => {
 
   it('reset clears staged content', async () => {
     let body: unknown;
-    const agent = new HttpAgent({ url: 'http://x', fetchImpl: fakeFetch({ output: 'ok' }, (_u, b) => (body = b)) });
+    const agent = new HttpAgent({
+      url: 'http://x',
+      fetchImpl: fakeFetch({ output: 'ok' }, (_u, b) => (body = b)),
+    });
     await agent.injectContent({ channel: 'email', source: 's', content: 'x' });
     await agent.reset();
     await agent.sendMessage({ message: 'm' });

@@ -25,8 +25,6 @@ import { EXIT_ERROR, EXIT_OK } from './exit-codes.js';
 import { createConsoleIo } from './io.js';
 import type { Io } from './io.js';
 
-
-
 /** Dispatch one argv tail. Never exits the process; returns the exit code. */
 export async function run(argv: readonly string[], provided?: Io): Promise<number> {
   let io = provided ?? createConsoleIo();

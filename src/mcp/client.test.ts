@@ -204,10 +204,18 @@ describe('McpClient pagination and calls', () => {
       kind: 'loop',
       request: async (message: JsonRpcRequest) => {
         if (message.method === 'initialize') {
-          return { jsonrpc: '2.0', id: message.id, result: { serverInfo: { name: 's', version: '1' } } };
+          return {
+            jsonrpc: '2.0',
+            id: message.id,
+            result: { serverInfo: { name: 's', version: '1' } },
+          };
         }
         page += 1;
-        return { jsonrpc: '2.0', id: message.id, result: { tools: [], nextCursor: `page-${page}` } };
+        return {
+          jsonrpc: '2.0',
+          id: message.id,
+          result: { tools: [], nextCursor: `page-${page}` },
+        };
       },
       notify: async () => {},
       close: async () => {},
@@ -246,10 +254,15 @@ describe('createHttpTransport', () => {
       seenSessions.push(new Headers(init?.headers).get('mcp-session-id'));
       if (req.id === undefined) return new Response(null, { status: 202 });
       const isInit = req.method === 'initialize';
-      return jsonResponse(server.handle(req as JsonRpcRequest), isInit ? { 'mcp-session-id': 'sess-123' } : {});
+      return jsonResponse(
+        server.handle(req as JsonRpcRequest),
+        isInit ? { 'mcp-session-id': 'sess-123' } : {},
+      );
     }) as unknown as typeof fetch;
 
-    const client = new McpClient({ transport: createHttpTransport({ url: 'http://mcp.local', fetchImpl }) });
+    const client = new McpClient({
+      transport: createHttpTransport({ url: 'http://mcp.local', fetchImpl }),
+    });
     await client.initialize();
     await client.listTools();
 
@@ -270,14 +283,19 @@ describe('createHttpTransport', () => {
       });
     }) as unknown as typeof fetch;
 
-    const client = new McpClient({ transport: createHttpTransport({ url: 'http://mcp.local', fetchImpl }) });
+    const client = new McpClient({
+      transport: createHttpTransport({ url: 'http://mcp.local', fetchImpl }),
+    });
     const info = await client.initialize();
     expect(info.serverInfo.name).toBe('benign-mcp');
   });
 
   it('raises McpProtocolError on a non-2xx HTTP status', async () => {
-    const fetchImpl = (async () => new Response('nope', { status: 500 })) as unknown as typeof fetch;
-    const client = new McpClient({ transport: createHttpTransport({ url: 'http://mcp.local', fetchImpl }) });
+    const fetchImpl = (async () =>
+      new Response('nope', { status: 500 })) as unknown as typeof fetch;
+    const client = new McpClient({
+      transport: createHttpTransport({ url: 'http://mcp.local', fetchImpl }),
+    });
     await expect(client.initialize()).rejects.toBeInstanceOf(McpProtocolError);
   });
 });

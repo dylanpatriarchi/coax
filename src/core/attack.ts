@@ -38,7 +38,13 @@ export const AttackFamilySchema = z.enum([
 export type AttackFamily = z.infer<typeof AttackFamilySchema>;
 
 /** Where the payload is delivered — determines which adapter capability it needs. */
-export const AttackSurfaceSchema = z.enum(['direct', 'indirect', 'tool', 'multi-turn', 'inter-agent']);
+export const AttackSurfaceSchema = z.enum([
+  'direct',
+  'indirect',
+  'tool',
+  'multi-turn',
+  'inter-agent',
+]);
 export type AttackSurface = z.infer<typeof AttackSurfaceSchema>;
 
 export const SeveritySchema = z.enum(['low', 'medium', 'high', 'critical']);

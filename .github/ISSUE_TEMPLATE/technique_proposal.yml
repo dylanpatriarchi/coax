@@ -1,0 +1,119 @@
+name: Technique / feature proposal
+description: Propose a new attack module, oracle, adapter, or other capability.
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        COAX only implements **published, documented** technique families. A
+        proposal without a public reference will be closed — see the
+        responsible-contribution rule in
+        [CONTRIBUTING.md](https://github.com/dylanpatriarchi/coax/blob/main/CONTRIBUTING.md).
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What are you proposing
+      options:
+        - Attack module (new technique family)
+        - Oracle (new success signal)
+        - Adapter (new target type)
+        - Defense (new mitigation to measure)
+        - Scenario (multi-step / multi-session)
+        - Scoring / report / taxonomy
+        - CLI or developer experience
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What it does and what gap it closes. Two or three sentences.
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Public reference (required for a technique)
+      description: |
+        URL to the paper, vendor advisory, CVE, or conference writeup that first
+        documented this technique. "Something I found myself" is not acceptable —
+        COAX does not accept novel exploit synthesis.
+      placeholder: 'https://www.anthropic.com/research/many-shot-jailbreaking'
+    validations:
+      required: true
+
+  - type: input
+    id: reference-detail
+    attributes:
+      label: Who published it and when
+      placeholder: 'Microsoft, June 2024 ("Skeleton Key")'
+    validations:
+      required: true
+
+  - type: input
+    id: taxonomy
+    attributes:
+      label: Taxonomy mapping
+      description: OWASP LLM Top 10 (2025), OWASP Agentic Top 10 (2026) ASI01–10, and/or MITRE ATLAS ids.
+      placeholder: 'LLM01, ASI01, AML.T0054'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Attack surface
+      options:
+        - direct
+        - indirect (ingested content)
+        - tool
+        - multi-turn
+        - inter-agent
+        - not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: parameterisation
+    attributes:
+      label: How it parameterises (attack modules)
+      description: |
+        Modules are seeded generators, not payload lists. Describe the axes you
+        would vary — pretext × demand × delivery, etc. — and roughly how many
+        payloads that yields.
+      placeholder: |
+        3 pretexts (research / audit / policy-update) x 3 demands, shuffled by
+        the derived RNG => up to 9 payloads, capped by ctx.maxPayloads.
+
+  - type: textarea
+    id: detection
+    attributes:
+      label: How success is detected
+      description: |
+        Which oracle proves it worked? If you are proposing an oracle, describe
+        its deterministic signal and the benign cases it must NOT fire on.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: This is a published technique family, not novel exploit synthesis.
+          required: true
+        - label: It can be implemented and tested fully offline against the mock agent.
+          required: true
+        - label: It does not require eliciting genuinely harmful content to measure the failure.
+          required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to open a PR for this.

@@ -43,7 +43,8 @@ function suspiciousArg(call: ToolCall): string | null {
 
 export const egressOracle: Oracle = {
   id: 'egress',
-  description: 'A tool call targets an internal/metadata/attacker network destination (SSRF/exfil).',
+  description:
+    'A tool call targets an internal/metadata/attacker network destination (SSRF/exfil).',
   confidence: 'deterministic',
 
   evaluate(input: OracleInput): OracleVerdict {

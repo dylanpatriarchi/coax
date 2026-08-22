@@ -34,7 +34,11 @@ interface Framing {
   severity: Severity;
   technique: string;
   render: (victimTool: string) => string;
-  inject?: { channel: 'web' | 'document' | 'tool_result' | 'email'; source: string; content: string };
+  inject?: {
+    channel: 'web' | 'document' | 'tool_result' | 'email';
+    source: string;
+    content: string;
+  };
 }
 
 const FRAMINGS: Framing[] = [

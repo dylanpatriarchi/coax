@@ -94,7 +94,9 @@ export function loadBaseline(path: string): BaselineReport {
   try {
     raw = JSON.parse(readFileSync(path, 'utf8'));
   } catch (err) {
-    throw new Error(`--baseline: cannot read "${path}" — ${(err as Error).message}`);
+    throw new Error(`--baseline: cannot read "${path}" — ${(err as Error).message}`, {
+      cause: err,
+    });
   }
   const parsed = BaselineReportSchema.safeParse(raw);
   if (!parsed.success) {
@@ -175,7 +177,9 @@ const signed = (n: number): string => `${n > 0 ? '+' : ''}${(n * 100).toFixed(0)
 export function renderDiff(diff: BaselineDiff, io: Io): string[] {
   const s = io.style;
   const out: string[] = [];
-  out.push(`  ${s.bold('baseline')} ${diff.baselineTarget} ${s.dim(`(seed ${diff.baselineSeed})`)}`);
+  out.push(
+    `  ${s.bold('baseline')} ${diff.baselineTarget} ${s.dim(`(seed ${diff.baselineSeed})`)}`,
+  );
   if (!diff.comparable) {
     out.push(
       s.yellow('  NOTE: baseline target/seed differs from this run — the diff is indicative only.'),
@@ -189,7 +193,12 @@ export function renderDiff(diff: BaselineDiff, io: Io): string[] {
     if (!f.inCurrent) {
       return [f.family, pct(f.baselineAsr), s.dim('(not run in this scan)'), '', '', ''];
     }
-    const move = f.delta > 0 ? s.red(signed(f.delta)) : f.delta < 0 ? s.green(signed(f.delta)) : s.dim(signed(f.delta));
+    const move =
+      f.delta > 0
+        ? s.red(signed(f.delta))
+        : f.delta < 0
+          ? s.green(signed(f.delta))
+          : s.dim(signed(f.delta));
     return [
       f.regressed ? s.red(f.family) : f.family,
       f.inBaseline ? pct(f.baselineAsr) : s.dim('new'),

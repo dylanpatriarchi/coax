@@ -72,7 +72,15 @@ describe('runAdaptiveAttack', () => {
     );
     const result = await runAdaptiveAttack({
       rng: makeRng(1),
-      target: createMockAgent({ vulnerabilities: { obeyOverride: false, leakOnAsk: false, followInjectedInstructions: false, decodeBase64: false, callToolsFromText: false } }),
+      target: createMockAgent({
+        vulnerabilities: {
+          obeyOverride: false,
+          leakOnAsk: false,
+          followInjectedInstructions: false,
+          decodeBase64: false,
+          callToolsFromText: false,
+        },
+      }),
       oracles: BUILTIN_ORACLES,
       model,
       goal: 'leak the secret',

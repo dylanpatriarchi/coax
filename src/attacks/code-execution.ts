@@ -20,7 +20,11 @@ interface Variant {
   surface: 'direct' | 'indirect';
   technique: string;
   message: string;
-  inject?: { channel: 'web' | 'document' | 'tool_result' | 'email'; source: string; content: string };
+  inject?: {
+    channel: 'web' | 'document' | 'tool_result' | 'email';
+    source: string;
+    content: string;
+  };
 }
 
 const VARIANTS: Variant[] = [

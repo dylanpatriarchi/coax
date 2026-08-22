@@ -106,11 +106,7 @@ export function renderScanSummary(report: ScanReport, io: Io): void {
     io.out(`\n  ${s.bold('utility')} ${s.dim('(usefulness vs. security)')}`);
     io.out(
       renderTable({
-        columns: [
-          { header: 'workload' },
-          { header: 'rate', align: 'right' },
-          { header: 'detail' },
-        ],
+        columns: [{ header: 'workload' }, { header: 'rate', align: 'right' }, { header: 'detail' }],
         rows: [
           [
             'benign tasks',

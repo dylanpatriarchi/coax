@@ -37,7 +37,10 @@ describe('CachingModel', () => {
   });
 
   it('propagates budget exhaustion for new prompts', async () => {
-    const model = new CachingModel(scriptedModel((p) => p), new CallBudget(1));
+    const model = new CachingModel(
+      scriptedModel((p) => p),
+      new CallBudget(1),
+    );
     await model.complete('a');
     await expect(model.complete('b')).rejects.toThrow(BudgetExceededError);
   });

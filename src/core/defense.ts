@@ -214,9 +214,14 @@ export function withDefenses(target: TargetAdapter, defenses: readonly Defense[]
     // Capability preservation: forward ONLY what the inner target really has.
     ...(supportsInjection(target) ? { injectContent } : {}),
     ...(supportsTools(target)
-      ? { describeTools: (): Promise<ToolSpec[]> => (target.describeTools as () => Promise<ToolSpec[]>)() }
+      ? {
+          describeTools: (): Promise<ToolSpec[]> =>
+            (target.describeTools as () => Promise<ToolSpec[]>)(),
+        }
       : {}),
-    ...(target.reset ? { reset: (): Promise<void> => (target.reset as () => Promise<void>)() } : {}),
+    ...(target.reset
+      ? { reset: (): Promise<void> => (target.reset as () => Promise<void>)() }
+      : {}),
     defenses: stack,
     consumeEvents(): DefenseEvent[] {
       const drained = events;

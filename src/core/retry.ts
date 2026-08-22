@@ -51,7 +51,8 @@ export function isTransientError(err: unknown): boolean {
     if (typeof status === 'number' && isTransientStatus(status)) return true;
     if (typeof e.message === 'string' && TRANSIENT_TEXT.test(e.message)) return true;
     // undici wraps the real reason in `cause`.
-    if ('cause' in err && err.cause !== err) return isTransientError((err as { cause: unknown }).cause);
+    if ('cause' in err && err.cause !== err)
+      return isTransientError((err as { cause: unknown }).cause);
   }
   return false;
 }

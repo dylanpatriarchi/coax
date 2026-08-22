@@ -173,12 +173,7 @@ export interface ManifestAuditOptions {
 
 type TextField = 'name' | 'description' | 'parameters';
 
-function scanText(
-  tool: string,
-  field: TextField,
-  text: string,
-  out: ManifestFinding[],
-): void {
+function scanText(tool: string, field: TextField, text: string, out: ManifestFinding[]): void {
   if (text.length === 0) return;
 
   const hidden = text.match(HIDDEN_CHAR_PATTERN);
@@ -338,7 +333,8 @@ export type ManifestOracleOptions = ManifestAuditOptions;
 export function createManifestOracle(opts: ManifestOracleOptions = {}): Oracle {
   return {
     id: 'manifest',
-    description: 'Poisoned tool metadata: hidden instructions, shadowing, collisions, rug-pull drift.',
+    description:
+      'Poisoned tool metadata: hidden instructions, shadowing, collisions, rug-pull drift.',
     confidence: 'deterministic',
 
     evaluate(input: OracleInput): OracleVerdict {
@@ -355,7 +351,11 @@ export function createManifestOracle(opts: ManifestOracleOptions = {}): Oracle {
 
       const first = findings[0] as ManifestFinding;
       const rest = findings.length > 1 ? ` (+${findings.length - 1} more)` : '';
-      return { ...base, success: true, evidence: `${first.kind} on ${first.tool}: ${first.evidence}${rest}` };
+      return {
+        ...base,
+        success: true,
+        evidence: `${first.kind} on ${first.tool}: ${first.evidence}${rest}`,
+      };
     },
   };
 }

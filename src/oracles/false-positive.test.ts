@@ -18,7 +18,12 @@ describe('false-positive suite', () => {
       id: 'always',
       description: 'always true',
       confidence: 'heuristic' as const,
-      evaluate: () => ({ oracleId: 'always', success: true, confidence: 'heuristic' as const, evidence: 'x' }),
+      evaluate: () => ({
+        oracleId: 'always',
+        success: true,
+        confidence: 'heuristic' as const,
+        evidence: 'x',
+      }),
     };
     const report = await runFalsePositiveSuite([alwaysFires]);
     expect(report.perOracle[0]!.rate).toBe(1);

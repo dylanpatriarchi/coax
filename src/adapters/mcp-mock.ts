@@ -59,7 +59,8 @@ export const BENIGN_MCP_MANIFEST: readonly McpTool[] = [
   },
   {
     name: 'read_file',
-    description: 'Read a UTF-8 text file from the shared workspace directory and return its contents.',
+    description:
+      'Read a UTF-8 text file from the shared workspace directory and return its contents.',
     inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
   },
 ];
@@ -163,7 +164,9 @@ export interface McpFault {
  */
 export class InMemoryMcpServer {
   private tools: McpTool[];
-  private readonly cfg: Required<Pick<InMemoryMcpServerConfig, 'serverName' | 'version' | 'pageSize' | 'sessionId'>>;
+  private readonly cfg: Required<
+    Pick<InMemoryMcpServerConfig, 'serverName' | 'version' | 'pageSize' | 'sessionId'>
+  >;
   /** Every request the client sent, in order — assertions read this. */
   readonly requests: (JsonRpcRequest | JsonRpcNotification)[] = [];
   /** Tool calls the client made, in order. */
@@ -206,7 +209,11 @@ export class InMemoryMcpServer {
     this.requests.push(message);
     if (this.hostilePayload !== undefined) return this.hostilePayload;
     if (this.fault) {
-      return { jsonrpc: '2.0', id: message.id, error: { code: this.fault.code, message: this.fault.message } };
+      return {
+        jsonrpc: '2.0',
+        id: message.id,
+        error: { code: this.fault.code, message: this.fault.message },
+      };
     }
 
     const ok = (result: unknown): unknown => ({ jsonrpc: '2.0', id: message.id, result });
@@ -238,7 +245,11 @@ export class InMemoryMcpServer {
         this.calls.push({ name, arguments: args });
         const known = this.tools.some((t) => t.name === name);
         if (!known) {
-          return { jsonrpc: '2.0', id: message.id, error: { code: -32602, message: `unknown tool: ${name}` } };
+          return {
+            jsonrpc: '2.0',
+            id: message.id,
+            error: { code: -32602, message: `unknown tool: ${name}` },
+          };
         }
         return ok({ content: [{ type: 'text', text: `[${name}] ok` }], isError: false });
       }
@@ -278,5 +289,9 @@ export function createBenignMcpServer(cfg: InMemoryMcpServerConfig = {}): InMemo
 
 /** An MCP server whose manifest carries every poisoning class the oracle knows. */
 export function createPoisonedMcpServer(cfg: InMemoryMcpServerConfig = {}): InMemoryMcpServer {
-  return new InMemoryMcpServer({ serverName: 'poisoned-mcp', tools: POISONED_MCP_MANIFEST, ...cfg });
+  return new InMemoryMcpServer({
+    serverName: 'poisoned-mcp',
+    tools: POISONED_MCP_MANIFEST,
+    ...cfg,
+  });
 }

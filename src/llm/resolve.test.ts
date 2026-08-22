@@ -160,7 +160,9 @@ describe('resolveJudgeModel', () => {
   it('is null unless the environment explicitly configures a model', () => {
     expect(resolveJudgeModel({})).toBeNull();
     expect(resolveJudgeModel({ COAX_MAX_USD: '1' })).toBeNull();
-    expect(resolveJudgeModel({ ANTHROPIC_API_KEY: 'k' })?.id).toBe('cached:anthropic:claude-opus-5');
+    expect(resolveJudgeModel({ ANTHROPIC_API_KEY: 'k' })?.id).toBe(
+      'cached:anthropic:claude-opus-5',
+    );
     expect(resolveJudgeModel({ COAX_PROVIDER: 'ollama' })?.id).toBe('cached:ollama:qwen3.5:0.8b');
   });
 

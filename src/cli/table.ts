@@ -58,10 +58,7 @@ export function renderTable(opts: TableOptions): string[] {
   const dividers = new Set(opts.dividersAfter ?? []);
 
   const widths = columns.map((col, i) =>
-    rows.reduce(
-      (max, row) => Math.max(max, visibleWidth(row[i] ?? '')),
-      visibleWidth(col.header),
-    ),
+    rows.reduce((max, row) => Math.max(max, visibleWidth(row[i] ?? '')), visibleWidth(col.header)),
   );
 
   const rule = (left: string, mid: string, right: string): string =>

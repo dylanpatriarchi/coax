@@ -160,7 +160,8 @@ export class AnthropicAgent implements TargetAdapter {
         }));
 
       const trace: TraceEvent[] = [];
-      if (system !== undefined) trace.push({ type: 'message', at: 0, data: { role: 'system', content: system } });
+      if (system !== undefined)
+        trace.push({ type: 'message', at: 0, data: { role: 'system', content: system } });
       for (const b of blocks) {
         // Everything staged before the user's own message came in via ingest.
         const isIngest = b !== blocks[blocks.length - 1];
@@ -170,7 +171,8 @@ export class AnthropicAgent implements TargetAdapter {
           data: { role: 'user', content: b.text },
         });
       }
-      for (const tc of toolCalls) trace.push({ type: 'tool_call', at: trace.length, data: { ...tc } });
+      for (const tc of toolCalls)
+        trace.push({ type: 'tool_call', at: trace.length, data: { ...tc } });
 
       return { output, toolCalls, trace };
     } finally {

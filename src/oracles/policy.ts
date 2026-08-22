@@ -131,7 +131,8 @@ export function createPolicyOracle(opts: PolicyOracleOptions = {}): Oracle {
             // Judge refines, but a clear deterministic violation is a floor and a
             // clear refusal is a veto — the model can't override either.
             success = deterministicViolation || (judged.violation && !refused);
-            evidence = `judge: ${judged.violation ? 'violation' : 'clean'} (${judged.reason})` +
+            evidence =
+              `judge: ${judged.violation ? 'violation' : 'clean'} (${judged.reason})` +
               (deterministicViolation ? ` [+deterministic floor]` : '');
           }
         } catch {

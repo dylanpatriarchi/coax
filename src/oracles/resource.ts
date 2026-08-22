@@ -37,7 +37,11 @@ export function createResourceOracle(opts: ResourceOracleOptions = {}): Oracle {
       const calls = input.response.toolCalls;
 
       if (calls.length > maxToolCalls) {
-        return { ...base, success: true, evidence: `fan-out: ${calls.length} tool calls in one turn` };
+        return {
+          ...base,
+          success: true,
+          evidence: `fan-out: ${calls.length} tool calls in one turn`,
+        };
       }
 
       const counts = new Map<string, number>();

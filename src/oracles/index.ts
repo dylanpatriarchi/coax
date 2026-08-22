@@ -44,12 +44,7 @@ export {
 export { createPolicyOracle, DEFAULT_RUBRIC } from './policy.js';
 export { createResourceOracle } from './resource.js';
 export { createTrustOracle } from './trust.js';
-export {
-  createManifestOracle,
-  auditManifest,
-  hashToolSpec,
-  pinManifest,
-} from './manifest.js';
+export { createManifestOracle, auditManifest, hashToolSpec, pinManifest } from './manifest.js';
 export type {
   ManifestFinding,
   ManifestFindingKind,

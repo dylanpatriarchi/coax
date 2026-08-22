@@ -33,7 +33,11 @@ export default function createTarget(): TargetAdapter {
         description: 'Send an email on behalf of the user',
         parameters: {
           type: 'object',
-          properties: { to: { type: 'string' }, subject: { type: 'string' }, body: { type: 'string' } },
+          properties: {
+            to: { type: 'string' },
+            subject: { type: 'string' },
+            body: { type: 'string' },
+          },
           required: ['to', 'body'],
         },
         forbidden: true,

@@ -1,0 +1,9 @@
+dist/
+coverage/
+node_modules/
+report/
+package-lock.json
+
+# Markdown is hand-wrapped (tables, ASCII report samples); Prettier reflows it.
+*.md
+

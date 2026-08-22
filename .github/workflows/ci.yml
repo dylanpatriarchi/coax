@@ -10,6 +10,26 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: lint
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier
+        run: npm run format:check
+
   build-test:
     runs-on: ubuntu-latest
     strategy:
@@ -40,3 +60,47 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  coverage:
+    runs-on: ubuntu-latest
+    name: coverage
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Thresholds live in vitest.config.ts; this step fails if they regress.
+      - name: Test with coverage (offline)
+        run: npm run test:coverage
+        env:
+          COAX_OFFLINE: '1'
+
+      - name: Report coverage
+        if: always()
+        run: |
+          {
+            echo '## Coverage'
+            echo
+            echo '```'
+            node --input-type=module -e "
+              import { readFileSync } from 'node:fs';
+              const t = JSON.parse(readFileSync('coverage/coverage-summary.json', 'utf8')).total;
+              for (const k of ['statements', 'branches', 'functions', 'lines'])
+                console.log(k.padEnd(12), t[k].pct + '%', '(' + t[k].covered + '/' + t[k].total + ')');
+            "
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7

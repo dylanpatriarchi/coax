@@ -1,0 +1,109 @@
+name: Bug report
+description: Something in COAX behaves incorrectly — wrong scan results, a crashing adapter, a broken report.
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do **not** use this form for a security vulnerability in COAX itself —
+        see [SECURITY.md](https://github.com/dylanpatriarchi/coax/blob/main/SECURITY.md)
+        and report it privately.
+
+        A target agent being successfully attacked is not a COAX bug. Neither is
+        the mock agent leaking its canary — it is deliberately vulnerable.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: This is not a security vulnerability in COAX (those go through a private advisory).
+          required: true
+        - label: I searched existing issues.
+          required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Observed behaviour, and what you expected instead.
+      placeholder: |
+        Expected: the egress oracle ignores 127.0.0.1 callbacks.
+        Actual: it reports success, so ASR for tool-abuse is inflated.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: |
+        Scans are deterministic under `--seed`, so include the exact command.
+        Trim anything sensitive — never paste real credentials or target data.
+      render: shell
+      placeholder: |
+        npx tsx src/cli/index.ts scan --seed 42 --out report/
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Output / stack trace
+      description: Relevant CLI output, failing test, or stack trace.
+      render: shell
+
+  - type: input
+    id: seed
+    attributes:
+      label: Seed
+      placeholder: '42'
+
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Adapter
+      options:
+        - mock
+        - http
+        - openai-compatible
+        - ollama
+        - playwright
+        - multi-agent
+        - custom target module
+        - not adapter-specific
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - attacks
+        - oracles
+        - adapters
+        - core / runner
+        - scenarios
+        - scoring / report
+        - cli
+        - build / CI
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: COAX version or commit
+      placeholder: '0.1.0 / daa091f'
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node version and OS
+      placeholder: 'node 22.11.0, macOS 15.1'
+    validations:
+      required: true

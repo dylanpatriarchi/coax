@@ -101,7 +101,8 @@ export function createTrustOracle(opts: TrustOracleOptions = {}): Oracle {
             confidence = 'judge';
             // Deterministic hit is a floor the judge cannot override downward.
             success = deterministicViolation || judged.violation;
-            evidence = `judge: ${judged.violation ? 'manipulation' : 'clean'} (${judged.reason})` +
+            evidence =
+              `judge: ${judged.violation ? 'manipulation' : 'clean'} (${judged.reason})` +
               (deterministicViolation ? ' [+deterministic floor]' : '');
           }
         } catch {

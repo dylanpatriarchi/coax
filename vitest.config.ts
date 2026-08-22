@@ -19,5 +19,22 @@ export default defineConfig({
   test: {
     env: { COAX_OFFLINE: '1', NO_COLOR: '1' },
     exclude: ['**/node_modules/**', '**/dist/**', '**/.claude/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'lcov', 'json-summary'],
+      reportsDirectory: 'coverage',
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts'],
+      // Thresholds sit ~2pp below the measured numbers (92.4 / 83.8 / 89.5 /
+      // 93.4 over 524 tests): the gate catches a real regression without
+      // tripping on a one-line change. Raise them when coverage rises; do not
+      // lower them to make a red build green.
+      thresholds: {
+        statements: 90,
+        branches: 81,
+        functions: 87,
+        lines: 91,
+      },
+    },
   },
 });

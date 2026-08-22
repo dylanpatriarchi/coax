@@ -25,7 +25,9 @@ describe('indirect-injection module', () => {
   });
 
   it('covers all four ingestion channels', () => {
-    const channels = new Set(indirectInjectionModule.generate(ctx(1)).map((p) => p.inject?.channel));
+    const channels = new Set(
+      indirectInjectionModule.generate(ctx(1)).map((p) => p.inject?.channel),
+    );
     expect(channels).toEqual(new Set(['web', 'document', 'tool_result', 'email']));
   });
 

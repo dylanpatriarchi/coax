@@ -46,7 +46,7 @@ export function ollamaModel(opts: OllamaModelOptions = {}): ChatModel {
         const json = (await res.json()) as { response?: string; thinking?: string };
         // Prefer the answer; fall back to thinking text if the model still routed
         // its output there despite think:false.
-        return json.response && json.response.length > 0 ? json.response : json.thinking ?? '';
+        return json.response && json.response.length > 0 ? json.response : (json.thinking ?? '');
       } finally {
         clearTimeout(timer);
       }

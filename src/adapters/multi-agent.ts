@@ -84,7 +84,11 @@ export class MultiAgentMock implements TargetAdapter {
     const sibling = await this.peer.sendMessage({ message: broadcast });
 
     const trace: TraceEvent[] = [
-      { type: 'note', at: 0, data: { agent: 'supervisor', received: input.message, said: sup.output } },
+      {
+        type: 'note',
+        at: 0,
+        data: { agent: 'supervisor', received: input.message, said: sup.output },
+      },
       { type: 'note', at: 1, data: { hop: 'supervisor→worker', bus: delegation } },
       ...(wrk.trace ?? []),
       { type: 'note', at: 2, data: { hop: 'worker→supervisor', bus: report, said: upward.output } },

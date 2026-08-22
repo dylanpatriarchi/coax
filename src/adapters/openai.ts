@@ -89,7 +89,10 @@ export class OpenAIAgent implements TargetAdapter {
       msgs.push({ role: 'system', content: sys });
     }
     for (const c of this.staged) {
-      msgs.push({ role: 'tool', content: `[Ingested ${c.channel} from ${c.source}]\n${c.content}` });
+      msgs.push({
+        role: 'tool',
+        content: `[Ingested ${c.channel} from ${c.source}]\n${c.content}`,
+      });
     }
     msgs.push({ role: 'user', content: input.message });
     return msgs;
