@@ -5,6 +5,9 @@
  * Everything a judge/attacker needs is a `ChatModel.complete(prompt)`. On top of
  * that this file provides the controls the spec requires for ANY live model use:
  *   - `CallBudget`   — hard cap on call count and estimated USD (cost control).
+ *                      Real spend is charged via the model's optional
+ *                      `estimateUsd` hook (see `pricing.ts`), so the money
+ *                      ceiling reflects what a scan actually costs.
  *   - `CachingModel` — deterministic in-memory cache so identical prompts cost
  *                      nothing on repeat and scans stay reproducible.
  *   - `scriptedModel`— a fully-offline fake used by tests and CI.
@@ -13,6 +16,12 @@
 export interface ChatModel {
   readonly id: string;
   complete(prompt: string): Promise<string>;
+  /**
+   * Estimated USD for one completion, so `CallBudget`'s money ceiling is charged
+   * with real spend rather than call count alone. Optional: a model that omits
+   * it (a local one, a scripted fake) simply costs nothing.
+   */
+  estimateUsd?(prompt: string, completion: string): number;
 }
 
 export class BudgetExceededError extends Error {
@@ -44,6 +53,10 @@ export class CallBudget {
     return Math.max(0, this.maxCalls - this.calls);
   }
 
+  remainingUsd(): number {
+    return Math.max(0, this.maxUsd - this.usd);
+  }
+
   /** Charge one call (+ optional cost). Throws BEFORE overspending. */
   consume(usd = 0): void {
     if (this.calls + 1 > this.maxCalls) {
@@ -53,6 +66,17 @@ export class CallBudget {
       throw new BudgetExceededError(`USD budget exhausted (max $${this.maxUsd})`);
     }
     this.calls += 1;
+    this.usd += usd;
+  }
+
+  /**
+   * Record spend that already happened (a call's real cost is only known once
+   * the response is back). Deliberately does NOT throw: the money is gone and
+   * throwing would only discard a response we already paid for. The ceiling
+   * bites on the NEXT `consume()`, which sees the accumulated total.
+   */
+  charge(usd: number): void {
+    if (!Number.isFinite(usd) || usd <= 0) return;
     this.usd += usd;
   }
 }
@@ -82,11 +106,18 @@ export class CachingModel implements ChatModel {
   async complete(prompt: string): Promise<string> {
     const key = hash(prompt);
     const hit = this.cache.get(key);
+    // A cache hit costs nothing, so it neither consumes a call nor spends money.
     if (hit !== undefined) return hit;
     this.budget?.consume();
     const out = await this.inner.complete(prompt);
+    // Charge the real (estimated) spend now that the completion length is known.
+    this.budget?.charge(this.estimateUsd(prompt, out));
     this.cache.set(key, out);
     return out;
+  }
+
+  estimateUsd(prompt: string, completion: string): number {
+    return this.inner.estimateUsd?.(prompt, completion) ?? 0;
   }
 
   get cacheSize(): number {
