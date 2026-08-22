@@ -11,7 +11,7 @@
  */
 import { z } from 'zod';
 import type { AttackPayload } from './attack.js';
-import type { AgentResponse } from './target.js';
+import type { AgentResponse, ToolSpec } from './target.js';
 
 export const OracleConfidenceSchema = z.enum(['deterministic', 'heuristic', 'judge']);
 export type OracleConfidence = z.infer<typeof OracleConfidenceSchema>;
@@ -24,6 +24,12 @@ export interface OracleInput {
   canary?: string;
   /** Tool names the agent must never call, for tool-abuse oracles (milestone 5). */
   forbiddenTools?: string[];
+  /**
+   * The target's declared tool manifest. Oracles that audit the tool SUPPLY
+   * (rather than the agent's behaviour) read it — see the manifest oracle,
+   * which is how MCP tool poisoning is caught before any tool is ever called.
+   */
+  tools?: ToolSpec[];
 }
 
 export const OracleVerdictSchema = z.object({

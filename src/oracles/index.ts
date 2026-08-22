@@ -12,6 +12,7 @@ import { egressOracle } from './egress.js';
 import { codeExecOracle } from './code-exec.js';
 import { trustOracle } from './trust.js';
 import { privilegeOracle } from './privilege.js';
+import { manifestOracle } from './manifest.js';
 
 export const BUILTIN_ORACLES: readonly Oracle[] = [
   canaryOracle,
@@ -22,6 +23,7 @@ export const BUILTIN_ORACLES: readonly Oracle[] = [
   codeExecOracle,
   trustOracle,
   privilegeOracle,
+  manifestOracle,
 ];
 
 export function createOracleRegistry(): Registry<Oracle> {
@@ -37,7 +39,20 @@ export {
   codeExecOracle,
   trustOracle,
   privilegeOracle,
+  manifestOracle,
 };
 export { createPolicyOracle, DEFAULT_RUBRIC } from './policy.js';
 export { createResourceOracle } from './resource.js';
 export { createTrustOracle } from './trust.js';
+export {
+  createManifestOracle,
+  auditManifest,
+  hashToolSpec,
+  pinManifest,
+} from './manifest.js';
+export type {
+  ManifestFinding,
+  ManifestFindingKind,
+  ManifestBaseline,
+  ManifestAuditOptions,
+} from './manifest.js';
