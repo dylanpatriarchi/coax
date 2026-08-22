@@ -8,10 +8,12 @@ export { HttpAgent, createHttpAgent } from './http.js';
 export type { HttpAdapterConfig } from './http.js';
 export { OpenAIAgent, createOpenAIAgent } from './openai.js';
 export type { OpenAIAdapterConfig } from './openai.js';
+export { AnthropicAgent, createAnthropicAgent } from './anthropic.js';
+export type { AnthropicAdapterConfig } from './anthropic.js';
 export { OllamaAgent, createOllamaAgent } from './ollama.js';
 export { PlaywrightAgent, createPlaywrightAgent } from './playwright.js';
 export type { PlaywrightAdapterConfig } from './playwright.js';
 
 /** Names of the built-in adapters, for docs/help output. */
-export const ADAPTER_KINDS = ['mock', 'http', 'openai', 'ollama', 'playwright'] as const;
+export const ADAPTER_KINDS = ['mock', 'http', 'openai', 'anthropic', 'ollama', 'playwright'] as const;
 export type AdapterKind = (typeof ADAPTER_KINDS)[number];
