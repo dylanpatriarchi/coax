@@ -13,6 +13,7 @@
  * so scenario findings appear alongside single-turn ones.
  */
 import { supportsInjection } from './target.js';
+import { isBlockedResponse } from './defense.js';
 import type { AgentResponse, InjectedContent, TargetAdapter } from './target.js';
 import type { Oracle, OracleVerdict } from './oracle.js';
 import type { AttackFamily, AttackPayload, AttackSurface, Severity } from './attack.js';
@@ -138,6 +139,9 @@ export function scenarioToAttempt(result: ScenarioResult): Attempt {
 
   // A scenario is one multi-turn run, so it is a single trial by construction and
   // declares no expected oracles — its success keeps the any-oracle semantics.
+  // A defended scenario still reports how many of its turns were refused, so a
+  // block stays visible rather than reading as an ordinary miss.
+  const blockedTurns = result.turns.filter((t) => isBlockedResponse(t.response)).length;
   return {
     payload,
     response: decisive?.response ?? { output: '', toolCalls: [] },
@@ -147,7 +151,7 @@ export function scenarioToAttempt(result: ScenarioResult): Attempt {
     trials: 1,
     hits: result.success ? 1 : 0,
     collateralHits: 0,
-    blocked: 0,
+    blocked: blockedTurns > 0 ? 1 : 0,
   };
 }
 

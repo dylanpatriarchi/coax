@@ -15,11 +15,17 @@
  * both makes that trade-off impossible to hide — an over-blocking stack shows
  * 0% residual next to a collapsed benign-utility rate, side by side.
  *
+ * Multi-turn scenarios build their own targets, so they enter through the
+ * `extraAttempts` hook and are measured on both sides too. Without it the
+ * families that exist ONLY as scenarios — crescendo, memory poisoning,
+ * inter-agent, rogue agent — would sit in the main report and then be quietly
+ * missing from the one table that says whether a control helps.
+ *
  * Deterministic: both scans use the same seed and payload set, so any difference
  * between the two columns is attributable to the defenses and nothing else.
  */
 import { withDefenses } from '../core/defense.js';
-import type { Defense } from '../core/defense.js';
+import type { Defense, DefendedTarget, DefenseEvent } from '../core/defense.js';
 import { runScan } from '../core/runner.js';
 import type { Attempt, ScanOptions, ScanResult } from '../core/runner.js';
 import type { TargetAdapter } from '../core/target.js';
@@ -88,6 +94,18 @@ const reductionOf = (baseline: number, defended: number): number =>
 export interface CompareDefensesOptions extends ScanOptions {
   defenses: readonly Defense[];
   /**
+   * Attempts that do not come from `runScan`. Called twice — once with an
+   * identity wrapper for the baseline column, once with the defense stack for
+   * the defended one — and folded into both sides of the table.
+   *
+   * This exists because multi-turn scenarios build their own targets, so the
+   * families that only exist as scenarios (crescendo, memory-poisoning,
+   * inter-agent, rogue-agent) would appear in the main report and then be
+   * silently missing from the comparison. `scenarioComparisonSource` in
+   * `src/scenarios` is the ready-made hook.
+   */
+  extraAttempts?: (wrap: (target: TargetAdapter) => TargetAdapter) => Promise<Attempt[]>;
+  /**
    * A baseline scan already computed with the SAME seed, modules and trials.
    * Supplying it avoids scanning the undefended target twice.
    */
@@ -104,6 +122,9 @@ export interface CompareDefensesOptions extends ScanOptions {
 export interface DefenseComparisonResult {
   baseline: ScanResult;
   defended: ScanResult;
+  /** Out-of-band attempts (scenarios) from each side, so callers need not re-run them. */
+  baselineExtra: Attempt[];
+  defendedExtra: Attempt[];
   comparison: DefenseComparison;
 }
 
@@ -113,19 +134,43 @@ export interface DefenseComparisonResult {
 export async function compareDefenses(
   opts: CompareDefensesOptions,
 ): Promise<DefenseComparisonResult> {
-  const { defenses, baseline: providedBaseline, utility, utilityTarget, ...scanOpts } = opts;
+  const {
+    defenses,
+    baseline: providedBaseline,
+    utility,
+    utilityTarget,
+    extraAttempts,
+    ...scanOpts
+  } = opts;
 
   const baseline = providedBaseline ?? (await runScan(scanOpts));
   const defendedTarget = withDefenses(scanOpts.target, defenses);
   const defended = await runScan({ ...scanOpts, target: defendedTarget });
 
-  const baseTotals = totals(baseline.attempts);
-  const defTotals = totals(defended.attempts);
+  // Scenario (and any other out-of-band) attempts, measured on both sides so a
+  // multi-turn family carries a residual instead of a blank row.
+  const baseExtra = extraAttempts ? await extraAttempts((t) => t) : [];
+  // Scenarios build one target per scenario, so keep hold of the wrappers to
+  // drain their event logs — otherwise their quarantines and rewrites would be
+  // invisible while their blocks were counted, which is worse than either.
+  const extraTargets: DefendedTarget[] = [];
+  const defExtra = extraAttempts
+    ? await extraAttempts((t) => {
+        const wrapped = withDefenses(t, defenses);
+        extraTargets.push(wrapped);
+        return wrapped;
+      })
+    : [];
+  const baseAll = [...baseline.attempts, ...baseExtra];
+  const defAll = [...defended.attempts, ...defExtra];
+
+  const baseTotals = totals(baseAll);
+  const defTotals = totals(defAll);
   const baseOverall = rateEstimate(baseTotals.hits, baseTotals.trials);
   const defOverall = rateEstimate(defTotals.hits, defTotals.trials);
 
-  const baseFamilies = byFamilyTotals(baseline.attempts);
-  const defFamilies = byFamilyTotals(defended.attempts);
+  const baseFamilies = byFamilyTotals(baseAll);
+  const defFamilies = byFamilyTotals(defAll);
   const byFamily: DefenseFamilyDelta[] = [...baseFamilies.keys()]
     .sort((a, b) => a.localeCompare(b))
     .map((key) => {
@@ -142,9 +187,10 @@ export async function compareDefenses(
       };
     });
 
-  const events = defended.attempts.flatMap((a) =>
-    (a.trialResults ?? []).flatMap((t) => t.defense?.events ?? []),
-  );
+  const events: DefenseEvent[] = [
+    ...defAll.flatMap((a) => (a.trialResults ?? []).flatMap((t) => t.defense?.events ?? [])),
+    ...extraTargets.flatMap((t) => t.consumeEvents()),
+  ];
 
   const comparison: DefenseComparison = {
     defenses: defenses.map((d) => ({
@@ -160,8 +206,8 @@ export async function compareDefenses(
     },
     byFamily,
     activity: {
-      totalAttempts: defended.attempts.length,
-      blockedAttempts: defended.attempts.filter((a) => a.blocked > 0).length,
+      totalAttempts: defAll.length,
+      blockedAttempts: defAll.filter((a) => a.blocked > 0).length,
       quarantinedIngests: events.filter((e) => e.stage === 'ingest' && e.action === 'blocked').length,
       rewrittenResponses: events.filter((e) => e.stage === 'output' && e.action === 'rewrote').length,
     },
@@ -179,5 +225,5 @@ export async function compareDefenses(
     comparison.utility = { baseline: baselineUtility, defended: defendedUtility };
   }
 
-  return { baseline, defended, comparison };
+  return { baseline, defended, baselineExtra: baseExtra, defendedExtra: defExtra, comparison };
 }

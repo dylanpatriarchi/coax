@@ -126,6 +126,17 @@ function blockedResponse(defenseId: string, reason: string): AgentResponse {
 }
 
 /**
+ * True when a response is the empty stand-in a defense returns for a refused
+ * turn. Lets callers outside the runner — the scenario flattener, most of all —
+ * account for a block instead of reading it as an ordinary miss.
+ */
+export function isBlockedResponse(response: AgentResponse): boolean {
+  return (response.trace ?? []).some(
+    (e) => e.type === 'note' && e.data['blocked'] === true && typeof e.data['defense'] === 'string',
+  );
+}
+
+/**
  * Wrap a target in a defense stack, preserving its capabilities.
  *
  * Capability detection is load-bearing: the runner decides whether indirect

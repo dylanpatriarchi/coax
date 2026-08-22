@@ -33,13 +33,24 @@ export interface RunScenariosOptions {
   seed: number;
   canary?: string;
   model?: ChatModel;
+  /**
+   * Decorate the target each scenario runs against — the seam a defense stack
+   * enters through. Scenarios build their own targets, so without this the
+   * families that ONLY exist as scenarios (crescendo, memory-poisoning,
+   * inter-agent, rogue-agent) would sit in the main report yet be silently
+   * absent from any baseline-vs-defended comparison.
+   */
+  wrapTarget?: (target: TargetAdapter) => TargetAdapter;
 }
 
 /** Anything that spans more than one agent needs the multi-agent target. */
 const MULTI_AGENT_FAMILIES = new Set(['inter-agent', 'rogue-agent']);
 
-function targetFor(scenario: Scenario): TargetAdapter {
-  return MULTI_AGENT_FAMILIES.has(scenario.family) ? createMultiAgentMock() : createMockAgent();
+function targetFor(scenario: Scenario, opts: RunScenariosOptions): TargetAdapter {
+  const base = MULTI_AGENT_FAMILIES.has(scenario.family)
+    ? createMultiAgentMock()
+    : createMockAgent();
+  return opts.wrapTarget ? opts.wrapTarget(base) : base;
 }
 
 export async function runBuiltinScenarios(
@@ -47,7 +58,7 @@ export async function runBuiltinScenarios(
   scenarios: readonly Scenario[] = BUILTIN_SCENARIOS,
 ): Promise<ScenarioResult[]> {
   return runScenarios(scenarios, (scenario): ScenarioContext => ({
-    target: targetFor(scenario),
+    target: targetFor(scenario, opts),
     oracles: opts.oracles,
     rng: makeRng(opts.seed).derive(scenario.id),
     forbiddenTools: MOCK_FORBIDDEN,
@@ -60,6 +71,18 @@ export async function runBuiltinScenarios(
 export async function scenarioAttempts(opts: RunScenariosOptions): Promise<Attempt[]> {
   const results = await runBuiltinScenarios(opts);
   return results.map(scenarioToAttempt);
+}
+
+/**
+ * The built-in scenarios as a `compareDefenses` extra-attempt source: called
+ * once with an identity wrapper for the baseline column and once with the
+ * defense stack for the defended one, so multi-turn families carry a residual
+ * of their own instead of being missing from the table.
+ */
+export function scenarioComparisonSource(
+  opts: RunScenariosOptions,
+): (wrap: (target: TargetAdapter) => TargetAdapter) => Promise<Attempt[]> {
+  return (wrap) => scenarioAttempts({ ...opts, wrapTarget: wrap });
 }
 
 export { crescendoScenario, memoryPoisoningScenario, interAgentScenario, rogueAgentScenario };
