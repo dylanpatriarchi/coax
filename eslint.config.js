@@ -18,11 +18,15 @@ export default tseslint.config(
       },
     },
     rules: {
-      // Control and zero-width characters are payload material here (obfuscation
-      // transforms, sanitiser probes), not typos.
+      // Control and zero-width characters are the subject matter, not typos:
+      // the mock agent's sanitiser probe matches them deliberately, and
+      // `src/cli/ansi.ts` strips real ANSI escapes so `--no-color` output and
+      // test assertions stay byte-comparable. Two sites, both intentional.
       'no-control-regex': 'off',
-      // Defensive initialisation before a branch assigns the real value is a
-      // deliberate style in the adapters; tsc already flags genuinely dead reads.
+      // Two sites, both deliberate: a monotonic `step++` on its last read in the
+      // mock trace, and an initialiser in the OpenAI adapter that both branches
+      // of a try/catch overwrite. Rewriting either to satisfy the rule reads
+      // worse; tsc already rejects genuinely unreachable code.
       'no-useless-assignment': 'off',
       '@typescript-eslint/consistent-type-imports': [
         'error',
