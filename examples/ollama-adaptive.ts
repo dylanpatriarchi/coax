@@ -32,15 +32,20 @@ async function main(): Promise<void> {
 
   for (const r of result.rounds) {
     const hits = r.verdicts.filter((v) => v.success).map((v) => v.oracleId);
-    console.log(`\n[iteration ${r.iteration}]  ${r.success ? 'SUCCESS (' + hits.join(',') + ')' : 'miss'}`);
+    console.log(
+      `\n[iteration ${r.iteration}]  ${r.success ? 'SUCCESS (' + hits.join(',') + ')' : 'miss'}`,
+    );
     console.log(`  reasoning : ${r.reasoning.slice(0, 160)}`);
     console.log(`  payload   : ${r.message.slice(0, 160).replace(/\n/g, ' ')}`);
-    if (r.inject) console.log(`  injected  : [${r.inject.channel}] ${r.inject.content.slice(0, 120)}`);
+    if (r.inject)
+      console.log(`  injected  : [${r.inject.channel}] ${r.inject.content.slice(0, 120)}`);
     console.log(`  reply     : ${r.response.output.slice(0, 160).replace(/\n/g, ' ')}`);
   }
 
   console.log(`\n${'='.repeat(60)}`);
-  console.log(`succeeded: ${result.succeeded}  ·  stoppedBy: ${result.stoppedBy}  ·  iterations: ${result.iterationsUsed}\n`);
+  console.log(
+    `succeeded: ${result.succeeded}  ·  stoppedBy: ${result.stoppedBy}  ·  iterations: ${result.iterationsUsed}\n`,
+  );
 }
 
 main().catch((e: unknown) => {
