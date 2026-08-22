@@ -29,6 +29,8 @@ export const AttackFamilySchema = z.enum([
   'memory-poisoning',
   'inter-agent',
   'crescendo',
+  'trust-exploitation',
+  'identity-abuse',
 ]);
 export type AttackFamily = z.infer<typeof AttackFamilySchema>;
 

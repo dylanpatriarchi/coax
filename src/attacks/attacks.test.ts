@@ -21,6 +21,8 @@ describe('attack registry', () => {
       'supply-chain',
       'unbounded-consumption',
       'code-execution',
+      'trust-exploitation',
+      'identity-abuse',
       'many-shot-jailbreak',
       'skeleton-key',
       'policy-puppetry',

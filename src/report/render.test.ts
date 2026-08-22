@@ -52,6 +52,8 @@ describe('markdown renderer', () => {
           executeCode: false,
           runawayLoops: false,
           persistMemory: false,
+          assumeIdentity: false,
+          manufactureTrust: false,
         },
       }),
       modules: createAttackRegistry().list(),
