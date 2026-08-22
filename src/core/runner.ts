@@ -4,10 +4,10 @@
  * For each generated payload it (optionally) resets the target, stages any
  * indirect content, sends the message, then runs every oracle over the response.
  * It emits one `Attempt` record per payload. Aggregation into ASR/severity/
- * taxonomy scores and the report is milestone 7; this just produces the raw,
+ * taxonomy scores lives in `report/scoring.ts`; this just produces the raw,
  * reproducible evidence.
  *
- * Two things the runner is careful about beyond "send and check":
+ * Things the runner is careful about beyond "send and check":
  *
  *  - REPEATED TRIALS. Sending each payload once against a stochastic target
  *    produces an ASR with unknown variance — two runs of the same suite disagree
@@ -23,6 +23,20 @@
  *    payload declares `expectedOracles`, only those oracles count toward its
  *    headline result; anything else fired is recorded separately as collateral.
  *    Payloads that declare nothing keep the old any-oracle semantics.
+ *
+ *  - REPRODUCIBILITY. Payloads come from `planScan`, which is pure given
+ *    (seed, modules, context). `--dry-run` prints exactly that list, so what a
+ *    user previews is what the runner sends.
+ *
+ *  - ORDER. Attempts are always returned in payload order, never completion
+ *    order, so a concurrent run scores identically to a sequential one.
+ *
+ *  - ISOLATION. `reset -> inject -> send` is one stateful transaction against a
+ *    target, and repeated trials of one payload belong to the same attempt.
+ *    Running several in parallel on ONE adapter would interleave them, so
+ *    concurrency > 1 requires `createTarget` to hand each worker its own
+ *    adapter instance; without it the runner stays sequential rather than
+ *    silently producing corrupted evidence.
  */
 import { generatePayloads } from '../attacks/index.js';
 import { supportsInjection } from './target.js';
@@ -31,6 +45,8 @@ import type { DefenseTrace } from './defense.js';
 import { isDefendedTarget } from './defense.js';
 import type { Oracle, OracleVerdict } from './oracle.js';
 import { makeRng } from './rng.js';
+import { withRetry } from './retry.js';
+import type { RetryOptions } from './retry.js';
 import type { AgentResponse, TargetAdapter, ToolSpec } from './target.js';
 
 /** One send of one payload. */
@@ -77,6 +93,11 @@ export interface ScanOptions {
   oracles: readonly Oracle[];
   seed: number;
   canary?: string;
+  /**
+   * Budget cap. Passed to the modules as a hint AND enforced afterwards, per
+   * module, in `planScan`: modules interpret the hint differently (some cap per
+   * variant, some per tool) and `--max-payloads 2` has to mean two payloads.
+   */
   maxPayloads?: number;
   /**
    * How many times to send each payload. Default 1. Values above 1 are what make
@@ -84,6 +105,22 @@ export interface ScanOptions {
    * non-deterministic target.
    */
   trials?: number;
+  /**
+   * Post-generation payload filter (the CLI's `--surface`). Applied after
+   * generation so module ids/indices — and therefore payload ids — do not shift
+   * when a surface is filtered out.
+   */
+  payloadFilter?: (payload: AttackPayload) => boolean;
+  /** Attempts in flight. Default 1: today's deterministic sequential behaviour. */
+  concurrency?: number;
+  /**
+   * Builds an isolated target per worker; required for real parallelism. It must
+   * apply the same wrapping as `target` (defenses included), or the workers
+   * would scan a different agent than lane 0.
+   */
+  createTarget?: () => TargetAdapter | Promise<TargetAdapter>;
+  /** Bounded retry for transient target failures (timeout / 429 / 5xx). */
+  retry?: RetryOptions;
 }
 
 export interface ScanResult {
@@ -116,23 +153,27 @@ export function classifyVerdicts(
 
 async function runTrial(
   opts: ScanOptions,
+  target: TargetAdapter,
   payload: AttackPayload,
   forbiddenTools: string[],
   tools: ToolSpec[],
   index: number,
   conversationId: string | undefined,
 ): Promise<TrialResult> {
-  const { target, oracles, canary } = opts;
+  const { oracles, canary } = opts;
 
-  if (target.reset) await target.reset();
-  if (payload.inject && supportsInjection(target)) {
-    await target.injectContent(payload.inject);
-  }
-
-  const response: AgentResponse = await target.sendMessage({
-    message: payload.message,
-    ...(conversationId !== undefined ? { conversationId } : {}),
-  });
+  // The whole staging transaction retries together: replaying only the send
+  // would deliver a payload whose indirect content was never staged.
+  const response: AgentResponse = await withRetry(async () => {
+    if (target.reset) await target.reset();
+    if (payload.inject && supportsInjection(target)) {
+      await target.injectContent(payload.inject);
+    }
+    return target.sendMessage({
+      message: payload.message,
+      ...(conversationId !== undefined ? { conversationId } : {}),
+    });
+  }, opts.retry ?? {});
 
   const verdicts: OracleVerdict[] = [];
   for (const oracle of oracles) {
@@ -169,6 +210,7 @@ async function runTrial(
 
 async function runOne(
   opts: ScanOptions,
+  target: TargetAdapter,
   payload: AttackPayload,
   forbiddenTools: string[],
   tools: ToolSpec[],
@@ -179,13 +221,15 @@ async function runOne(
   for (let i = 0; i < trials; i++) {
     // Each trial gets its own child stream off the scan seed. With trials === 1
     // no conversation id is set at all, so the single-trial path is byte-for-byte
-    // what it was before repeated trials existed.
+    // what it was before repeated trials existed. Deriving from (seed, payload
+    // id, trial index) — never from a running counter — is also what keeps the
+    // ids stable when the attempts are spread across concurrent workers.
     const conversationId =
       trials > 1
         ? `trial-${makeRng(seed).derive(`${payload.id}#trial:${i}`).int(0, 0xffffff).toString(16)}`
         : undefined;
     trialResults.push(
-      await runTrial(opts, payload, forbiddenTools, tools, i, conversationId),
+      await runTrial(opts, target, payload, forbiddenTools, tools, i, conversationId),
     );
   }
 
@@ -208,29 +252,74 @@ async function runOne(
   };
 }
 
-export async function runScan(opts: ScanOptions): Promise<ScanResult> {
-  const trials = Math.max(1, Math.trunc(opts.trials ?? 1));
+/**
+ * The exact payload set a scan would send, in order. Pure apart from reading the
+ * target's tool manifest — no attack is delivered, which is what makes
+ * `coax scan --dry-run` free.
+ */
+export async function planScan(opts: ScanOptions): Promise<AttackPayload[]> {
   const tools = opts.target.describeTools ? await opts.target.describeTools() : [];
-  const forbidden = tools.filter((t) => t.forbidden).map((t) => t.name);
-
   const ctx = {
     rng: makeRng(opts.seed),
     ...(opts.canary !== undefined ? { canary: opts.canary } : {}),
     tools,
     ...(opts.maxPayloads !== undefined ? { maxPayloads: opts.maxPayloads } : {}),
   };
-  const payloads = generatePayloads(opts.modules, ctx);
+  const generated = generatePayloads(opts.modules, ctx);
+  const filtered = opts.payloadFilter ? generated.filter(opts.payloadFilter) : generated;
+  if (opts.maxPayloads === undefined) return filtered;
+
+  // Enforce the cap per module, keeping generation order so the kept payloads
+  // are the same ones every run.
+  const perModule = new Map<string, number>();
+  return filtered.filter((p) => {
+    const used = perModule.get(p.moduleId) ?? 0;
+    if (used >= (opts.maxPayloads as number)) return false;
+    perModule.set(p.moduleId, used + 1);
+    return true;
+  });
+}
+
+export async function runScan(opts: ScanOptions): Promise<ScanResult> {
+  const trials = Math.max(1, Math.trunc(opts.trials ?? 1));
+  const tools = opts.target.describeTools ? await opts.target.describeTools() : [];
+  const forbidden = tools.filter((t) => t.forbidden).map((t) => t.name);
+  const payloads = await planScan(opts);
+
+  // One adapter per worker, or one shared adapter when running sequentially.
+  const requested = Math.max(1, opts.concurrency ?? 1);
+  const lanes = opts.createTarget ? Math.min(requested, payloads.length || 1) : 1;
+  const workers: TargetAdapter[] = [opts.target];
+  const createTarget = opts.createTarget;
+  for (let i = 1; i < lanes && createTarget; i += 1) {
+    workers.push(await createTarget());
+  }
 
   // Drop anything a previous caller left in a defended target's event log, so
   // each attempt's trace contains only its own events.
-  if (isDefendedTarget(opts.target)) opts.target.consumeEvents();
-
-  // Sequential by default: keeps ordering deterministic and respects target rate
-  // limits. (Bounded concurrency is a later, opt-in optimisation.)
-  const attempts: Attempt[] = [];
-  for (const payload of payloads) {
-    attempts.push(await runOne(opts, payload, forbidden, tools, trials, opts.seed));
+  for (const worker of workers) {
+    if (isDefendedTarget(worker)) worker.consumeEvents();
   }
 
-  return { seed: opts.seed, target: opts.target.name, trials, attempts };
+  // Index-addressed results: workers race, the array stays in payload order.
+  const attempts = new Array<Attempt | undefined>(payloads.length);
+  let next = 0;
+  await Promise.all(
+    workers.map(async (worker) => {
+      for (;;) {
+        const index = next;
+        next += 1;
+        const payload = payloads[index];
+        if (payload === undefined) return;
+        attempts[index] = await runOne(opts, worker, payload, forbidden, tools, trials, opts.seed);
+      }
+    }),
+  );
+
+  return {
+    seed: opts.seed,
+    target: opts.target.name,
+    trials,
+    attempts: attempts.filter((a): a is Attempt => a !== undefined),
+  };
 }
