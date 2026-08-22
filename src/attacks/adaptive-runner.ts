@@ -13,6 +13,7 @@
 import { runAdaptiveAttack } from '../core/adaptive.js';
 import type { AdaptiveResult } from '../core/adaptive.js';
 import type { AttackPayload } from '../core/attack.js';
+import { isBlockedResponse } from '../core/defense.js';
 import type { Attempt } from '../core/runner.js';
 import type { Oracle } from '../core/oracle.js';
 import type { TargetAdapter } from '../core/target.js';
@@ -91,11 +92,20 @@ export function adaptiveAttempts(result: AdaptiveResult): Attempt[] {
         stoppedBy: result.stoppedBy,
       },
     };
+    // One round is one send, so it is a single trial by construction, and the
+    // attacker declares no expected oracles — a hit on ANY oracle is what the
+    // loop was steering for. A round a defense refused still says so, so an
+    // adaptive attempt that was blocked never reads as an ordinary miss.
     return {
       payload,
       response: round.response,
       verdicts: round.verdicts,
       success: round.success,
+      collateral: false,
+      trials: 1,
+      hits: round.success ? 1 : 0,
+      collateralHits: 0,
+      blocked: isBlockedResponse(round.response) ? 1 : 0,
     };
   });
 }
