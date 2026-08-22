@@ -26,11 +26,11 @@
  *     there is no ingested span to mark.
  *   - Datamarking measurably costs benign utility on content where character
  *     runs matter (code, URLs, tabular text).
- *   - Against COAX's own mock target it barely registers — roughly one attempt
- *     in seventy-six. That is not a bug in either: the mock decides with
- *     word-boundary regexes that survive space-interleaving, and it leaks
- *     whenever ANY content was ingested regardless of how that content is
- *     framed. Spotlighting is a control aimed squarely at a model's
+ *   - Against COAX's own mock target it barely registers — a single attempt
+ *     across the whole built-in suite. That is not a bug in either: the mock
+ *     decides with word-boundary regexes that survive space-interleaving, and
+ *     it leaks whenever ANY content was ingested regardless of how that content
+ *     is framed. Spotlighting is a control aimed squarely at a model's
  *     INSTRUCTION-FOLLOWING, and a pattern matcher has none to appeal to. Read
  *     the mock's number as a floor for this control, not as its value against a
  *     real LLM, and measure it on your own target before believing either.
