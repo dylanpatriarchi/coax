@@ -38,6 +38,9 @@ Closes #
       the clock during `npm test` with `COAX_OFFLINE=1`.
 - [ ] **Taxonomy** — new modules/payloads carry OWASP LLM 2025 / OWASP Agentic
       2026 / ATLAS ids from `src/core/taxonomy.ts`.
+- [ ] **Defenses** — a new defense wraps the target, records a `DefenseEvent`
+      with a real `blockedReason` instead of failing silently, and is measured
+      against the utility suite as well as ASR.
 
 ## Published technique only (attack modules)
 

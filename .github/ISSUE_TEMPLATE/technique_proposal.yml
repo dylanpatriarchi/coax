@@ -18,6 +18,7 @@ body:
         - Attack module (new technique family)
         - Oracle (new success signal)
         - Adapter (new target type)
+        - Defense (new mitigation to measure)
         - Scenario (multi-step / multi-session)
         - Scoring / report / taxonomy
         - CLI or developer experience

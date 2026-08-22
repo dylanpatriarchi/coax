@@ -164,6 +164,35 @@ a technique proposal issue before writing code.
    shaping, response parsing, tool-call surfacing, and staged-content delivery.
    No network in tests.
 
+## Adding a defense
+
+Defenses (`src/core/defense.ts`, `src/defenses/**`) are what turn a scan into a
+before/after number, so they carry two extra rules.
+
+1. A defense **wraps the target**, not the runner. It may rewrite or refuse what
+   goes in (the user turn and any staged content) and redact or refuse what
+   comes out (text and tool calls), and the same wrapped object has to work for
+   a scan, the utility suite and a scenario alike.
+2. **A block is evidence, not silence.** Refusing returns an empty response and
+   records a `DefenseEvent` with a `blockedReason` written as a real sentence —
+   it lands verbatim in the report. An attempt that quietly disappears cannot be
+   scored as defended.
+3. Pure functions of their input plus construction-time config. No clocks, no
+   randomness — a defended scan must be as reproducible as an undefended one.
+4. Register in `BUILTIN_DEFENSES` (`src/defenses/index.ts`).
+5. Test both directions: it stops the attacks it claims to stop, **and** it does
+   not tank the utility suite. A control that refuses everything scores 0% ASR
+   and 0% utility; the report shows both, and so must your tests.
+
+## Adding a CLI command
+
+Commands live in `src/cli/commands/`; `src/cli/index.ts` only dispatches and
+owns the error boundary. Declare flags in the table in `src/cli/args.ts` (zod
+validates them), take an `Io` so tests can capture output instead of writing to
+the terminal, return an exit code from `src/cli/exit-codes.ts`, and put the
+responsible-use gate in the command itself — never in the entry point, so no
+later command can route around it.
+
 ## Commits and pull requests
 
 [Conventional Commits](https://www.conventionalcommits.org/), lowercase subject,
